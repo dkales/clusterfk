@@ -25,13 +25,22 @@ class StatePopup(object):
         self.l.pack()
         self.e=Entry(top)
         self.e.insert(0, default_value)
+        self.e.bind("<Control-KeyRelease-a>", lambda x: self.select_all())
         self.e.pack()
+        self.e.select_range(0, 'end')
+        self.e.icursor('end')
         self.e.focus()
         self.b=Button(top,text='Ok',command=self.check_cleanup)
         self.b.pack()
         self.top.bind("<Return>", lambda x: self.check_cleanup())
         self.top.bind("<Escape>", lambda x: self.top.destroy())
         self.value = None
+
+    def select_all(event):
+        event.e.select_range(0, 'end')
+        # move cursor to the end
+        event.e.icursor('end')
+        return 'break'
 
     def check_cleanup(self):
         newstate=self.e.get()
