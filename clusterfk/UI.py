@@ -269,7 +269,7 @@ class ClusterFK:
         if self.trailUI is not None:
             self.trailUI.cleanup()
         self.trail = trail
-        self.trail.propagate()
+        # self.trail.propagate()
         self.trailUI = TrailUI(self.root, self.trail)
         self.trailUI.redraw_all()
         self.trailUI.redrawColorList()
