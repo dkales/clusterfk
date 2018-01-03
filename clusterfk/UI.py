@@ -19,7 +19,7 @@ SIDE = 12  # Width of every state cell.
 
 
 class StatePopup(object):
-    def __init__(self,master,default_value):
+    def __init__(self,master,default_value,state_probs):
         top=self.top=Toplevel(master)
         self.l=Label(top,text="New State")
         self.l.pack()
@@ -32,6 +32,12 @@ class StatePopup(object):
         self.e.focus()
         self.b=Button(top,text='Ok',command=self.check_cleanup)
         self.b.pack()
+        self.l2=Label(top,text="Probabilities")
+        self.l2.pack()
+        for i,x in enumerate(state_probs):
+            if x > 0:
+                l = Label(top, text=hex(i)[2:] +":"+str(x))
+                l.pack()
         self.top.bind("<Return>", lambda x: self.check_cleanup())
         self.top.bind("<Escape>", lambda x: self.top.destroy())
         self.value = None
@@ -158,7 +164,7 @@ class StateUI(Frame):
         x = self.__dim["MARGIN"] + state_col * self.__dim["SIDE"]
         y = self.__dim["MARGIN"] + state_row * self.__dim["SIDE"]
         self.canvas.create_rectangle(x, y, x+self.__dim["SIDE"], y+self.__dim["SIDE"], fill='', outline="red", width=2.0, tags="statehighlight")
-        dialog = StatePopup(self.__parent, oldstatestr)
+        dialog = StatePopup(self.__parent, oldstatestr, self.state.stateprobs[state_row*4+state_col])
         self.__parent.wait_window(dialog.top)
         self.canvas.delete("statehighlight")
         newstate = dialog.value
