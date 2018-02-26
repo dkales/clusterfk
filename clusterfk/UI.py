@@ -265,12 +265,15 @@ class ClusterFK:
 
         self.root.config(menu=self.menubar)
         self.trailUI = None
-        self.__initTrailUI(Mantis.MantisTrail(rounds, filename))
+        if filename.endswith(".cfk"):
+            self._loadTrailFromFile(open(filename, "rb"))
+        else:
+            self._initTrailUI(Mantis.MantisTrail(rounds, filename))
         # self.mantis.printTrail()
         self.root.geometry("{:d}x{:d}".format(1920,1080))
         self.root.mainloop()
 
-    def __initTrailUI(self, trail):
+    def _initTrailUI(self, trail):
 
         if self.trailUI is not None:
             self.trailUI.cleanup()
@@ -288,15 +291,19 @@ class ClusterFK:
         pickle.dump(self.trail, f)
         f.close()
 
+    def _loadTrailFromFile(self, f):
+        if f is None:
+            return
+        trail = pickle.load(f)
+        self._initTrailUI(trail)
+        f.close()
 
     def loadTrail(self):
         f = tkFileDialog.askopenfile(mode="r", defaultextension=".cfk")
         if f is None:
             return
-
-        trail = pickle.load(f)
-        self.__initTrailUI(trail)
-        f.close()
+        
+        self._loadTrailFromFile(f)
 
     def exportToLatex(self):
         f = tkFileDialog.asksaveasfile(mode="w", defaultextension=".tex")

@@ -90,18 +90,17 @@ def getUndefinedState():
 
 
 class MantisTrail(Trail.Trail):
-    def __init__(self, rounds, filename=None):
+    def __init__(self, rounds, filename):
         self.rounds = rounds
         self.states = {}
 
-        if filename is not None:
-            with open(filename, "r") as f:
-                content = f.readlines()
+        with open(filename, "r") as f:
+            content = f.readlines()
 
-            content = [x for x in content if x.strip() != ""]
+        content = [x for x in content if x.strip() != ""]
 
-            for i in range(0, len(content), 4):
-                self._parseStateBlock(map(lambda x: x.strip(), content[i:i+4]))
+        for i in range(0, len(content), 4):
+            self._parseStateBlock(map(lambda x: x.strip(), content[i:i+4]))
 
         self._addPropagation()
         self._addProbability()
