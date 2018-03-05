@@ -7,6 +7,9 @@ import re
 import math
 import itertools
 
+STATE_ROW = 4
+STATE_COL = 4
+STATE_SIZE = STATE_ROW * STATE_COL
 SBOX = [12,10,13,3,14,11,15,7,8,9,1,5,0,2,4,6]
 P    = (0,11,6,13,10,1,12,7,5,14,3,8,15,4,9,2)
 P_I  = (P.index(x) for x in range(16))
@@ -95,7 +98,7 @@ class MantisTrail(Trail.Trail):
         self.probabilities = []
         for i in range(self.rounds):
             self.probabilities.append(
-                    Probability.FullroundStep(i,
+                    Probability.FullroundStep(i, STATE_ROW, STATE_COL,
                         self.states["S"+str(i)], self.states["A"+str(i+1)],
                         self.states["T"+str(i+1)],
                         self.states["P"+str(i+1)], self.states["M"+str(i+1)], self.states["S"+str(i+1)], SBOX, P))
@@ -109,7 +112,7 @@ class MantisTrail(Trail.Trail):
 
         for i in range(self.rounds+2, (self.rounds+1)*2):
             self.probabilities.append(
-                    Probability.FullroundInverseStep(i,
+                    Probability.FullroundInverseStep(i, STATE_ROW, STATE_COL,
                         self.states["S"+str(i)], self.states["M"+str(i)],
                         self.states["P"+str(i)], self.states["A"+str(i)],
                         self.states["T"+str((self.rounds+1)*2 - i)],
@@ -135,63 +138,63 @@ class MantisTrail(Trail.Trail):
         for i in range(self.rounds+1):
             if i == 0:
                 self.propagations.append(
-                        Propagation.XORStep(self.states["A"+str(i)],
+                        Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
                             self.states["S"+str(i)], self.states["T"+str(i)]))
                 self.propagations.append(
-                        Propagation.SBOXStep(self.states["S"+str(i)],
+                        Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
                             self.states["A"+str(i+1)], SBOX))
             else:
                 self.propagations.append(
-                        Propagation.XORStep(self.states["A"+str(i)],
+                        Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
                             self.states["P"+str(i)], self.states["T"+str(i)]))
                 self.propagations.append(
-                        Propagation.PermutationStep(self.states["P"+str(i)],
+                        Propagation.PermutationStep(STATE_SIZE, self.states["P"+str(i)],
                             self.states["M"+str(i)], P))
                 self.propagations.append(
-                        Propagation.MixColStep(self.states["M"+str(i)],
+                        Propagation.MixColStep(STATE_ROW, STATE_COL, self.states["M"+str(i)],
                             self.states["S"+str(i)]))
                 self.propagations.append(
-                        Propagation.SBOXStep(self.states["S"+str(i)],
+                        Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
                             self.states["A"+str(i+1)], SBOX))
 
         # inner round forwards
         self.propagations.append(
-                Propagation.MixColStep(self.states["A"+str(self.rounds+1)],
+                Propagation.MixColStep(STATE_ROW, STATE_COL, self.states["A"+str(self.rounds+1)],
                     self.states["a"+str(self.rounds+1)]))
 
         # tweak
         for i in range(self.rounds):
-            self.propagations.append(Propagation.PermutationStep(
+            self.propagations.append(Propagation.PermutationStep(STATE_SIZE,
                 self.states["T" + str(i)], self.states["T" + str(i+1)], H))
 
         # backwards rounds
         for i in range((self.rounds+1)*2, self.rounds+1, -1):
             if i == ((self.rounds+1)*2):
                 self.propagations.append(
-                        Propagation.XORStep(self.states["A"+str(i)],
+                        Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
                             self.states["S"+str(i)],
                             self.states["T"+str((self.rounds+1)*2 -i)]))
                 self.propagations.append(
-                        Propagation.SBOXStep(self.states["S"+str(i)],
+                        Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
                             self.states["A"+str(i-1)], SBOX))
             else:
                 self.propagations.append(
-                        Propagation.XORStep(self.states["A"+str(i)],
+                        Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
                             self.states["P"+str(i)],
                             self.states["T"+str((self.rounds+1)*2 -i)]))
                 self.propagations.append(
-                        Propagation.PermutationStep(self.states["P"+str(i)],
+                        Propagation.PermutationStep(STATE_SIZE, self.states["P"+str(i)],
                             self.states["M"+str(i)], P))
                 self.propagations.append(
-                        Propagation.MixColStep(self.states["M"+str(i)],
+                        Propagation.MixColStep(STATE_ROW, STATE_COL, self.states["M"+str(i)],
                             self.states["S"+str(i)]))
                 if i==self.rounds+2:
                     self.propagations.append(
-                            Propagation.SBOXStep(self.states["S"+str(i)],
+                            Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
                                 self.states["a"+str(i-1)], SBOX))
                 else:
                     self.propagations.append(
-                            Propagation.SBOXStep(self.states["S"+str(i)],
+                            Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
                                 self.states["A"+str(i-1)], SBOX))
 
 

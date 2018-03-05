@@ -2,7 +2,6 @@ import Mantis
 
 # external imports
 import itertools
-
 def intersect(cell1, cell2):
     return list(set(cell1) & set(cell2))
 
@@ -15,14 +14,16 @@ class PropagationStep:
 
 
 class PermutationStep(PropagationStep):
-    def __init__(self, instate, outstate, perm):
+    def __init__(self, statesize, instate, outstate, perm):
+        self.statesize = statesize
         self.instate = instate
         self.outstate = outstate
         self.perm = perm
 
     def propagate(self):
-        for i in range(16):
+        for i in range(self.statesize):
             if 'T' in self.instate.name:
+                # TODO maybe possible better?
                 intersection = intersect(self.instate.atI(self.perm[i]), self.outstate.atI(i))
             else:
                 intersection = self.instate.atI(self.perm[i]) & self.outstate.atI(i)
@@ -34,13 +35,14 @@ class PermutationStep(PropagationStep):
 
 
 class XORStep(PropagationStep):
-    def __init__(self, instate, outstate, tweak):
+    def __init__(self, statesize, instate, outstate, tweak):
+        self.statesize = statesize
         self.instate = instate
         self.outstate = outstate
         self.tweak = tweak
 
     def propagate(self):
-        for i in range(16):
+        for i in range(self.statesize):
             t = self.tweak.atI(i)
             assert(len(t) == 1)
             t = t[0]
@@ -51,14 +53,16 @@ class XORStep(PropagationStep):
 
 
 class SBOXStep(PropagationStep):
-    def __init__(self, instate, outstate, sbox):
+    def __init__(self, statesize, instate, outstate, sbox):
+        self.statesize = statesize
         self.instate = instate
         self.outstate = outstate
         self.sbox = sbox
         self._initDDT(sbox)
 
     def _initDDT(self, sbox):
-        size= len(sbox)
+        size = len(sbox)
+        assert(self.statesize == size)
         ddt = [[0 for _ in range(size)] for _ in range(size)]
         for in1, in2 in itertools.product(range(size), repeat=2):
             out1, out2 = sbox[in1], sbox[in2]
@@ -68,27 +72,29 @@ class SBOXStep(PropagationStep):
     def _getDDTState(self, state):
         ret = set()
         for x in state:
-            ret.update([i for i in range(16) if self.ddt[x][i] > 0])
+            ret.update([i for i in range(self.statesize) if self.ddt[x][i] > 0])
         return ret
 
     def propagate(self):
-        for i in range(16):
+        for i in range(self.statesize):
             outposs = self._getDDTState(self.instate.atI(i))
             inposs = self._getDDTState(self.outstate.atI(i))
             self.instate.setI(i, self.instate.atI(i) & inposs)
             self.outstate.setI(i, self.outstate.atI(i) & outposs)
 
 class MixColStep(PropagationStep):
-    def __init__(self, instate, outstate):
+    def __init__(self, staterow, statecol, instate, outstate):
+        self.staterow = staterow
+        self.statecol = statecol
         self.instate = instate
         self.outstate = outstate
 
     def propagate(self):
         global cellcounter
 
-        for col in range(4):
-            incol = [self.instate.at(row, col) for row in range(4)]
-            outcol = [self.outstate.at(row, col) for row in range(4)]
+        for col in range(self.statecol):
+            incol = [self.instate.at(row, col) for row in range(self.staterow)]
+            outcol = [self.outstate.at(row, col) for row in range(self.staterow)]
             # only branchnum = 4 atm
             # if "5" in self.instate.name:
                 # print "<",col
@@ -99,10 +105,10 @@ class MixColStep(PropagationStep):
                 # print incol.count([0]) + outcol.count([0])
 
             # skip undefined blocks for now, will probably be resolved on their own
-            if incol.count([0]) + outcol.count([0]) == 8:
+            if incol.count({0}) + outcol.count({0}) == 8:
                 continue
 
-            if incol.count([0]) + outcol.count([0]) == 4 and False:
+            if incol.count({0}) + outcol.count({0}) == 4 and False: #TODO check this
                 states = {x for x in incol+outcol if x != [0]}
                 newstate = ((states[0] & states[1]) & states[2]) & states[3]
                 # print newstate
@@ -123,16 +129,21 @@ class MixColStep(PropagationStep):
                 outcol_old = set()
                 incol_new = set()
                 outcol_new = set()
-                for a,b,c,d in itertools.product(incol[0], incol[1], incol[2], incol[3]):
+
+
+
+                # TODO make dynamic!
+                assert(len(incol[0]) == 1) # just curious
+                for a, b, c, d in itertools.product(incol[0], incol[1], incol[2], incol[3]):
                     incol_old.add((a,b,c,d))
                     outcol_new.add((b^c^d, a^c^d, a^b^d, a^b^c))
-                for a,b,c,d in itertools.product(outcol[0], outcol[1], outcol[2], outcol[3]):
+                for a, b, c, d in itertools.product(outcol[0], outcol[1], outcol[2], outcol[3]):
                     outcol_old.add((a,b,c,d))
                     incol_new.add((b^c^d, a^c^d, a^b^d, a^b^c))
 
                 newinstate = incol_old & incol_new
                 newoutstate = outcol_old & outcol_new
-                for row in range(4):
+                for row in range(self.staterow):
                     ni = set()
                     no = set()
                     for x in newinstate:
