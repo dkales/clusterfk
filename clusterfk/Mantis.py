@@ -68,7 +68,7 @@ class MantisState(Trail.State):
         for row in range(4):
             for col in range(4):
                 if self.at(row, col) != [0]:
-                    self.set(row, col, {i for i in range(1,16)})
+                    self.set(row, col, [i for i in range(0,16)])
 
 
 def getUndefinedState():
