@@ -130,7 +130,7 @@ class StateUI(Frame):
             for j in xrange(NUM_STATE_CELLS[1]):
                 val = self.state.at(i, j)
 
-                if val == [0]:
+                if val == [0] or val == {0}:
                     color = "white"
                 else:
                     color = self.__trailui.trail.colorlist[frozenset(val)]

@@ -22,7 +22,10 @@ class PermutationStep(PropagationStep):
 
     def propagate(self):
         for i in range(16):
-            intersection = intersect(self.instate.atI(self.perm[i]), self.outstate.atI(i))
+            if 'T' in self.instate.name:
+                intersection = intersect(self.instate.atI(self.perm[i]), self.outstate.atI(i))
+            else:
+                intersection = self.instate.atI(self.perm[i]) & self.outstate.atI(i)
             if len(intersection) == 0:
                 print "Error in:", self.instate.name
                 assert False
@@ -41,10 +44,10 @@ class XORStep(PropagationStep):
             t = self.tweak.atI(i)
             assert(len(t) == 1)
             t = t[0]
-            in_new = [x^t for x in self.outstate.atI(i)]
-            out_new = [x^t for x in self.instate.atI(i)]
-            self.instate.setI(i, intersect(self.instate.atI(i), in_new))
-            self.outstate.setI(i, intersect(self.outstate.atI(i), out_new))
+            in_new = {x^t for x in self.outstate.atI(i)}
+            out_new = {x^t for x in self.instate.atI(i)}
+            self.instate.setI(i, self.instate.atI(i) & in_new)
+            self.outstate.setI(i, self.outstate.atI(i) & out_new)
 
 
 class SBOXStep(PropagationStep):
@@ -63,17 +66,17 @@ class SBOXStep(PropagationStep):
         self.ddt = ddt
 
     def _getDDTState(self, state):
-        ret = []
+        ret = set()
         for x in state:
-            ret += [i for i in range(16) if self.ddt[x][i] > 0]
+            ret.update([i for i in range(16) if self.ddt[x][i] > 0])
         return ret
 
     def propagate(self):
         for i in range(16):
             outposs = self._getDDTState(self.instate.atI(i))
             inposs = self._getDDTState(self.outstate.atI(i))
-            self.instate.setI(i, intersect(self.instate.atI(i), inposs))
-            self.outstate.setI(i, intersect(self.outstate.atI(i), outposs))
+            self.instate.setI(i, self.instate.atI(i) & inposs)
+            self.outstate.setI(i, self.outstate.atI(i) & outposs)
 
 class MixColStep(PropagationStep):
     def __init__(self, instate, outstate):
@@ -100,10 +103,8 @@ class MixColStep(PropagationStep):
                 continue
 
             if incol.count([0]) + outcol.count([0]) == 4 and False:
-                states = [x  for x in incol+outcol if x != [0]]
-                newstate = intersect(states[0], states[1])
-                newstate = intersect(newstate, states[2])
-                newstate = intersect(newstate, states[3])
+                states = {x for x in incol+outcol if x != [0]}
+                newstate = ((states[0] & states[1]) & states[2]) & states[3]
                 # print newstate
 
                 inidx = [i for i in range(4) if incol[i] != [0]]
@@ -129,8 +130,8 @@ class MixColStep(PropagationStep):
                     outcol_old.add((a,b,c,d))
                     incol_new.add((b^c^d, a^c^d, a^b^d, a^b^c))
 
-                newinstate = intersect(incol_old, incol_new)
-                newoutstate = intersect(outcol_old, outcol_new)
+                newinstate = incol_old & incol_new
+                newoutstate = outcol_old & outcol_new
                 for row in range(4):
                     ni = set()
                     no = set()
@@ -138,8 +139,8 @@ class MixColStep(PropagationStep):
                         ni.add(x[row])
                     for x in newoutstate:
                         no.add(x[row])
-                    self.instate.set(row, col, list(ni))
-                    self.outstate.set(row, col, list(no))
+                    self.instate.set(row, col, ni)
+                    self.outstate.set(row, col, no)
 
 
 

@@ -1,5 +1,6 @@
-import Trail, UI, Propagation, Probability
+import Trail, UI, Propagation, Probability, Utils
 from Tkinter import Label,StringVar
+from Utils import COLORS
 
 #external modules
 import re
@@ -11,21 +12,6 @@ P    = (0,11,6,13,10,1,12,7,5,14,3,8,15,4,9,2)
 P_I  = (P.index(x) for x in range(16))
 H    = (6,5,14,15,0,1,2,3,7,12,13,4,8,9,10,11)
 
-#solarized color scheme
-COLORS = {
-"yellow":   "#b58900",
-"orange":   "#cb4b16",
-"red":      "#dc322f",
-"magenta":  "#d33682",
-"violet":   "#6c71c4",
-"blue":     "#268bd2",
-"cyan":     "#2aa198",
-"green":    "#859900",
-"grey":     "#cccccc",
-"black":    "#000000",
-"grey2":    "#666666",
-"grey3":    "#999999",
-}
 
 class MantisState(Trail.State):
     """
@@ -76,17 +62,17 @@ class MantisState(Trail.State):
         for row in range(4):
             for col in range(4):
                 if newstate.at(row, col) != [0]:
-                    newstate.set(row, col, [i for i in range(1,16)])
+                    newstate.set(row, col, {i for i in range(1,16)})
 
     def makeActiveOnly(self):
         for row in range(4):
             for col in range(4):
                 if self.at(row, col) != [0]:
-                    self.set(row, col, [i for i in range(1,16)])
+                    self.set(row, col, {i for i in range(1,16)})
 
 
 def getUndefinedState():
-    return [[[i for i in range(16)] for _ in range(4)] for _ in range(4)]
+    return [[{i for i in range(16)} for _ in range(4)] for _ in range(4)]
 
 
 class MantisTrail(Trail.Trail):
@@ -233,7 +219,7 @@ class MantisTrail(Trail.Trail):
                    assert name == "" or name == match[0]
                    name = match[0]
                    statestr = match[1].replace("x","1").replace("-","0")
-                   row.append([int(statestr,2)])
+                   row.append({int(statestr,2)})
                state.append(row)
 
             name = name + str(curr_round)
@@ -254,7 +240,7 @@ class MantisTrail(Trail.Trail):
                    assert name == "" or name == match[0]
                    name = match[0]
                    statestr = match[1].replace("x","1").replace("-","0")
-                   row.append([int(statestr,2)])
+                   row.append({int(statestr,2)})
                state.append(row)
                row = []
                for i in range(4,8):
@@ -445,9 +431,7 @@ class MantisTrail(Trail.Trail):
                 outcol = [outstate.at(row, col) for row in range(4)]
                 if incol.count([0]) + outcol.count([0]) == 4:
                     states = [x  for x in incol+outcol if x != [0]]
-                    newstate = Propagation.intersect(states[0], states[1])
-                    newstate = Propagation.intersect(newstate, states[2])
-                    newstate = Propagation.intersect(newstate, states[3])
+                    newstate = ((states[0] & states[1]) & states[2]) & states[3]
                     inidx = [i for i in range(4) if incol[i] != [0]]
                     outidx = [i for i in range(4) if outcol[i] != [0]]
                     if len(newstate) > 1:
@@ -466,9 +450,7 @@ class MantisTrail(Trail.Trail):
             outcol = [outstate.at(row, col) for row in range(4)]
             if incol.count([0]) + outcol.count([0]) == 4:
                 states = [x  for x in incol+outcol if x != [0]]
-                newstate = Propagation.intersect(states[0], states[1])
-                newstate = Propagation.intersect(newstate, states[2])
-                newstate = Propagation.intersect(newstate, states[3])
+                newstate = ((states[0] & states[1]) & states[2]) & states[3]
                 inidx = [i for i in range(4) if incol[i] != [0]]
                 outidx = [i for i in range(4) if outcol[i] != [0]]
                 if len(newstate) > 1:
@@ -483,7 +465,7 @@ class MantisTrail(Trail.Trail):
         stateset = set()
         for state in self.states.values():
             for cell in state:
-                if cell != [0]:
+                if cell != [0] and cell != {0}:
                     stateset.add(frozenset(cell))
 
         return stateset
