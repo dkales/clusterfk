@@ -1,4 +1,6 @@
 import Mantis
+#internal imports
+import Utils
 
 # external imports
 import itertools
@@ -22,11 +24,7 @@ class PermutationStep(PropagationStep):
 
     def propagate(self):
         for i in range(self.statesize):
-            if 'T' in self.instate.name:
-                # TODO maybe possible better?
-                intersection = intersect(self.instate.atI(self.perm[i]), self.outstate.atI(i))
-            else:
-                intersection = self.instate.atI(self.perm[i]) & self.outstate.atI(i)
+            intersection = self.instate.atI(self.perm[i]) & self.outstate.atI(i)
             if len(intersection) == 0:
                 print "Error in:", self.instate.name
                 assert False
@@ -45,7 +43,7 @@ class XORStep(PropagationStep):
         for i in range(self.statesize):
             t = self.tweak.atI(i)
             assert(len(t) == 1)
-            t = t[0]
+            t = Utils.first(t)
             in_new = {x^t for x in self.outstate.atI(i)}
             out_new = {x^t for x in self.instate.atI(i)}
             self.instate.setI(i, self.instate.atI(i) & in_new)
@@ -131,9 +129,7 @@ class MixColStep(PropagationStep):
                 outcol_new = set()
 
 
-
                 # TODO make dynamic!
-                assert(len(incol[0]) == 1) # just curious
                 for a, b, c, d in itertools.product(incol[0], incol[1], incol[2], incol[3]):
                     incol_old.add((a,b,c,d))
                     outcol_new.add((b^c^d, a^c^d, a^b^d, a^b^c))

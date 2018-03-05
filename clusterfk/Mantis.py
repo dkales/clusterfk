@@ -50,32 +50,32 @@ class MantisState(Trail.State):
     def at(self, row, col):
         return self.state[row][col]
     def atI(self, index):
-        return self.state[index//4][index%4]
+        return self.state[index//STATE_ROW][index%STATE_COL]
 
     def getRowColDict(self):
-        return { (row,col) : self.at(row,col) for row in range(4) for col in range(4)}
+        return { (row,col) : self.at(row,col) for row in range(STATE_ROW) for col in range(STATE_COL)}
 
     def set(self, row, col, state):
         self.state[row][col] = state
     def setI(self, index, state):
-        self.state[index//4][index%4] = state
+        self.state[index//STATE_ROW][index%STATE_COL] = state
 
     def getActiveOnlyState(self):
         newstate = MantisState(self.name, getUndefinedState())
-        for row in range(4):
-            for col in range(4):
+        for row in range(STATE_ROW):
+            for col in range(STATE_COL):
                 if newstate.at(row, col) != [0]:
                     newstate.set(row, col, {i for i in range(1,16)})
 
     def makeActiveOnly(self):
         for row in range(4):
             for col in range(4):
-                if self.at(row, col) != [0]:
-                    self.set(row, col, [i for i in range(0,16)])
+                if self.at(row, col) != {0}:
+                    self.set(row, col, {i for i in range(0,16)})
 
 
 def getUndefinedState():
-    return [[{i for i in range(16)} for _ in range(4)] for _ in range(4)]
+    return [[{i for i in range(STATE_SIZE)} for _ in range(STATE_COL)] for _ in range(STATE_ROW)]
 
 
 class MantisTrail(Trail.Trail):
@@ -251,7 +251,7 @@ class MantisTrail(Trail.Trail):
                    assert name2 == "" or name2 == match[0]
                    name2 = match[0]
                    statestr = match[1].replace("x","1").replace("-","0")
-                   row.append([int(statestr,2)])
+                   row.append({int(statestr,2)})
                state2.append(row)
 
             name += str(curr_round)
@@ -468,7 +468,7 @@ class MantisTrail(Trail.Trail):
         stateset = set()
         for state in self.states.values():
             for cell in state:
-                if cell != [0] and cell != {0}:
+                if cell != {0}:
                     stateset.add(frozenset(cell))
 
         return stateset
@@ -497,7 +497,7 @@ class MantisTrail(Trail.Trail):
 
         inputposs = 1
         outputposs = 1
-        for i in range(16):
+        for i in range(STATE_SIZE):
             inputposs *= len(self.states["A0"].atI(i))
             outputposs *= len(self.states["A"+str((self.rounds+1)*2)].atI(i))
 

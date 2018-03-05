@@ -11,8 +11,9 @@ except Exception:
     import pickle
 
 import Mantis
+import Qarma
 
-NUM_STATE_CELLS = (4,4)
+NUM_STATE_CELLS = (4,4) #TODO make dynamic
 MARGIN = 4  # Pixels around the board
 SIDE = 12  # Width of every state cell.
 
@@ -169,7 +170,7 @@ class StateUI(Frame):
         self.canvas.delete("statehighlight")
         newstate = dialog.value
         if newstate is not None:
-            self.state.set(state_row, state_col, newstate)
+            self.state.set(state_row, state_col, set(newstate))
             self.__trailui.redraw_all()
 
 

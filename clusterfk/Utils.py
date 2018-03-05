@@ -13,3 +13,6 @@ COLORS = {
 "grey2":    "#666666",
 "grey3":    "#999999",
 }
+
+def first(set):
+    return iter(set).next()

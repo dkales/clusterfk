@@ -1,3 +1,5 @@
+import Utils
+
 import itertools
 import math
 import operator
@@ -82,10 +84,10 @@ class FullroundStep(ProbabilityStep):
 
         sboxprob = overall_prob
         for i in range(self.statesize):
-            if self.tweak.atI(i) !=[0]:
+            if self.tweak.atI(i) != {0}:
                 assert len(self.tweak.atI(i)) == 1
                 # outprobs[i] = [outprobs[i][x^self.tweak.atI(i)[0]] for x in range(16)]
-                self.permstate.stateprobs[i] = [self.addstate.stateprobs[i][x^self.tweak.atI(i)[0]] for x in range(self.statesize)]
+                self.permstate.stateprobs[i] = [self.addstate.stateprobs[i][x^Utils.first(self.tweak.atI(i))] for x in range(self.statesize)]
             else:
                 self.permstate.stateprobs[i] = [self.addstate.stateprobs[i][x] for x in range(self.statesize)]
 
@@ -301,16 +303,16 @@ class FullroundInverseStep(ProbabilityStep):
 
         self.addstate.columnprobs = {}
         for i in range(self.statesize):
-            if self.tweak.atI(i) != [0]:
+            if self.tweak.atI(i) != {0}:
                 assert len(self.tweak.atI(i)) == 1
-                self.addstate.stateprobs[i] = [self.permstate.stateprobs[i][x^self.tweak.atI(i)[0]] for x in range(self.statesize)]
+                self.addstate.stateprobs[i] = [self.permstate.stateprobs[i][x^Utils.first(self.tweak.atI(i))] for x in range(self.statesize)]
             else:
                 self.addstate.stateprobs[i] = [self.permstate.stateprobs[i][x] for x in range(16)]
         for col, probs in self.permstate.columnprobs.items():
             self.addstate.columnprobs[col] = {}
             for values, prob in probs.items():
                 #TODO make dynamic
-                self.addstate.columnprobs[col][(values[0]^self.tweak.atI(col[0])[0], values[1]^self.tweak.atI(col[1])[0], values[2]^self.tweak.atI(col[2])[0], values[3]^self.tweak.atI(col[3])[0])] = prob 
+                self.addstate.columnprobs[col][(values[0]^Utils.first(self.tweak.atI(col[0])), values[1]^Utils.first(self.tweak.atI(col[1])), values[2]^Utils.first(self.tweak.atI(col[2])), values[3]^Utils.first(self.tweak.atI(col[3])))] = prob
 
 
         for column, probs in self.addstate.columnprobs.items():
