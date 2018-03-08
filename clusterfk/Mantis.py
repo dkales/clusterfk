@@ -53,7 +53,7 @@ class MantisState(Trail.State):
         return self.state[index//STATE_ROW][index%STATE_COL]
 
     def getRowColDict(self):
-        return { (row,col) : self.at(row,col) for row in range(STATE_ROW) for col in range(STATE_COL)}
+        return { (row,col) : list(self.at(row,col)) for row in range(STATE_ROW) for col in range(STATE_COL)}
 
     def set(self, row, col, state):
         self.state[row][col] = state
@@ -93,6 +93,7 @@ class MantisTrail(Trail.Trail):
 
         self._addPropagation()
         self._addProbability()
+
 
     def _addProbability(self):
         self.probabilities = []
@@ -151,16 +152,16 @@ class MantisTrail(Trail.Trail):
                         Propagation.PermutationStep(STATE_SIZE, self.states["P"+str(i)],
                             self.states["M"+str(i)], P))
                 self.propagations.append(
-                        Propagation.MixColStep(STATE_ROW, STATE_COL, self.states["M"+str(i)],
-                            self.states["S"+str(i)]))
+                        Propagation.MixColStepMantis(STATE_ROW, STATE_COL, self.states["M" + str(i)],
+                                                     self.states["S"+str(i)]))
                 self.propagations.append(
                         Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
                             self.states["A"+str(i+1)], SBOX))
 
         # inner round forwards
         self.propagations.append(
-                Propagation.MixColStep(STATE_ROW, STATE_COL, self.states["A"+str(self.rounds+1)],
-                    self.states["a"+str(self.rounds+1)]))
+                Propagation.MixColStepMantis(STATE_ROW, STATE_COL, self.states["A" + str(self.rounds + 1)],
+                                             self.states["a"+str(self.rounds+1)]))
 
         # tweak
         for i in range(self.rounds):
@@ -186,8 +187,8 @@ class MantisTrail(Trail.Trail):
                         Propagation.PermutationStep(STATE_SIZE, self.states["P"+str(i)],
                             self.states["M"+str(i)], P))
                 self.propagations.append(
-                        Propagation.MixColStep(STATE_ROW, STATE_COL, self.states["M"+str(i)],
-                            self.states["S"+str(i)]))
+                        Propagation.MixColStepMantis(STATE_ROW, STATE_COL, self.states["M" + str(i)],
+                                                     self.states["S"+str(i)]))
                 if i==self.rounds+2:
                     self.propagations.append(
                             Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
@@ -410,7 +411,7 @@ class MantisTrail(Trail.Trail):
     def propagate(self):
         #do one propagation without mixcolumns, to speed them up later
         for p in self.propagations:
-            if not isinstance(p, Propagation.MixColStep):
+            if not isinstance(p, Propagation.MixColStepMantis):
                 p.propagate()
 
         #TODO: check for changes, do not just stupidly propagate N times
