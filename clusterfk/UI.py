@@ -253,7 +253,7 @@ class ClusterFK:
     """
     The Tkinter UI, responsible for drawing the board and accepting user input.
     """
-    def __init__(self,rounds,filename):
+    def __init__(self,rounds,filename,trail):
         self.root = Tk()
 
         self.menubar = Menu(self.root)
@@ -269,7 +269,7 @@ class ClusterFK:
         if filename.endswith(".cfk"):
             self._loadTrailFromFile(open(filename, "rb"))
         else:
-            self._initTrailUI(Mantis.MantisTrail(rounds, filename))
+            self._initTrailUI(trail(rounds, filename))
         # self.mantis.printTrail()
         self.root.geometry("{:d}x{:d}".format(1920,1080))
         self.root.mainloop()
@@ -279,7 +279,7 @@ class ClusterFK:
         if self.trailUI is not None:
             self.trailUI.cleanup()
         self.trail = trail
-        # self.trail.propagate()
+        self.trail.propagate()
         self.trailUI = TrailUI(self.root, self.trail)
         self.trailUI.redraw_all()
         self.trailUI.redrawColorList()

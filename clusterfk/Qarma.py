@@ -9,6 +9,10 @@ import re
 import math
 import itertools
 
+STATE_ROW = 4
+STATE_COL = 4
+STATE_SIZE = STATE_ROW * STATE_COL
+
 SBOX = [0, 14, 2, 10, 9, 15, 8, 11, 6, 4, 3, 7, 13, 12, 1, 5] #Sbox0
 SBOX_1 = [10, 13, 14, 6, 15, 7, 3, 5, 9, 8, 0, 12, 11, 1, 2, 4]
 SBOX_2 = [11, 6, 8, 15, 13, 0, 9, 14, 3, 7, 4, 5, 12, 2, 1, 10]
@@ -16,11 +20,15 @@ P = (0, 11, 6, 13, 10, 1, 12, 7, 5, 14, 3, 8, 15, 4, 9, 2)
 P_I = (P.index(x) for x in range(16))
 H = (6, 5, 14, 15, 0, 1, 2, 3, 7, 12, 13, 4, 8, 9, 10, 11)
 
+#helper
+LFSR_LOOKUP = (0, 8, 9, 1, 2, 10, 11, 3, 4, 12, 13, 5, 6, 14, 15, 7)
+LFSR_COMPUTATION_MATRIX = [1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]
+M4_3 = [[0, 1, 2, 1], [1, 0, 1, 2], [2, 1, 0, 1], [1, 2, 1, 0]]
 
 class QarmaState(Trail.State):
     """
-    A representation of the 4x4 state of MANTIS
-    """
+     A representation of the 4x4 state of QARMA
+     """
 
     def __init__(self, name, state):
         self.state = state
@@ -43,46 +51,46 @@ class QarmaState(Trail.State):
 
     def __repr__(self):
         return """
-{}:
-    {}{}{}{}
-    {}{}{}{}
-    {}{}{}{}
-    {}{}{}{}""".strip().format(self.name, *[x for y in self.state for x in y])
+    {}:
+        {}{}{}{}
+        {}{}{}{}
+        {}{}{}{}
+        {}{}{}{}""".strip().format(self.name, *[x for y in self.state for x in y])
 
     def at(self, row, col):
         return self.state[row][col]
 
     def atI(self, index):
-        return self.state[index // 4][index % 4]
+        return self.state[index // STATE_ROW][index % STATE_COL]
 
     def getRowColDict(self):
-        return {(row, col): self.at(row, col) for row in range(4) for col in range(4)}
+        return {(row, col): self.at(row, col) for row in range(STATE_ROW) for col in range(STATE_COL)}
 
     def set(self, row, col, state):
         self.state[row][col] = state
 
     def setI(self, index, state):
-        self.state[index // 4][index % 4] = state
+        self.state[index // STATE_ROW][index % STATE_COL] = state
 
     def getActiveOnlyState(self):
         newstate = QarmaState(self.name, getUndefinedState())
-        for row in range(4):
-            for col in range(4):
+        for row in range(STATE_ROW):
+            for col in range(STATE_COL):
                 if newstate.at(row, col) != [0]:
-                    newstate.set(row, col, [i for i in range(1, 16)])
+                    newstate.set(row, col, {i for i in range(1, 16)})
 
     def makeActiveOnly(self):
         for row in range(4):
             for col in range(4):
-                if self.at(row, col) != [0]:
-                    self.set(row, col, [i for i in range(1, 16)])
+                if self.at(row, col) != {0}:
+                    self.set(row, col, {i for i in range(0, 16)})
 
 
 def getUndefinedState():
-    return [[[i for i in range(16)] for _ in range(4)] for _ in range(4)]
+    return [[{i for i in range(STATE_SIZE)} for _ in range(STATE_COL)] for _ in range(STATE_ROW)]
 
 
-class MantisTrail(Trail.Trail):
+class QarmaTrail(Trail.Trail):
     def __init__(self, rounds, filename):
         self.rounds = rounds
         self.states = {}
@@ -102,104 +110,99 @@ class MantisTrail(Trail.Trail):
         self.probabilities = []
         for i in range(self.rounds):
             self.probabilities.append(
-                Probability.FullroundStep(i,
+                Probability.FullroundStepQarma(i, STATE_ROW, STATE_COL,
                                           self.states["S" + str(i)], self.states["A" + str(i + 1)],
                                           self.states["T" + str(i + 1)],
                                           self.states["P" + str(i + 1)], self.states["M" + str(i + 1)],
-                                          self.states["S" + str(i + 1)], SBOX, P))
+                                          self.states["S" + str(i + 1)], SBOX, P, M4_3))
 
         self.probabilities.append(
-            Probability.MantisInnerRoundStep(
+            Probability.InnerRoundStepQarma(STATE_ROW, STATE_COL,
                 self.states["S" + str(self.rounds)],
                 self.states["A" + str(self.rounds + 1)],
-                self.states["a" + str(self.rounds + 1)],
-                self.states["S" + str(self.rounds + 2)], SBOX))
+                self.states["I" + str(self.rounds + 1)],
+                self.states["I" + str(self.rounds + 1) + "_i"],
+                self.states["A" + str(self.rounds + 1) + "_i"],
+                self.states["S" + str(self.rounds + 2)], SBOX, P, M4_3))
 
         for i in range(self.rounds + 2, (self.rounds + 1) * 2):
             self.probabilities.append(
-                Probability.FullroundInverseStep(i,
+                Probability.FullroundInverseStepQarma(i, STATE_ROW, STATE_COL,
                                                  self.states["S" + str(i)], self.states["M" + str(i)],
                                                  self.states["P" + str(i)], self.states["A" + str(i)],
                                                  self.states["T" + str((self.rounds + 1) * 2 - i)],
-                                                 self.states["S" + str(i + 1)], SBOX, P))
-        # return
-        # for i in range(self.rounds+1):
-        # self.probabilities.append(
-        # Probability.SBOXProbabilityStep(self.states["S"+str(i)],
-        # self.states["A"+str(i+1)], SBOX))
-
-        # for i in range((self.rounds+1)*2, self.rounds+1, -1):
-        # if i==self.rounds+2:
-        # self.probabilities.append(
-        # Probability.SBOXProbabilityStep(self.states["a"+str(i-1)],
-        # self.states["S"+str(i)], SBOX))
-        # else:
-        # self.probabilities.append(
-        # Probability.SBOXProbabilityStep(self.states["A"+str(i-1)],
-        # self.states["S"+str(i)], SBOX))
+                                                 self.states["S" + str(i + 1)], SBOX, P, M4_3))
 
     def _addPropagation(self):
         self.propagations = []
         for i in range(self.rounds + 1):
             if i == 0:
                 self.propagations.append(
-                    Propagation.XORStep(self.states["A" + str(i)],
+                    Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
                                         self.states["S" + str(i)], self.states["T" + str(i)]))
                 self.propagations.append(
-                    Propagation.SBOXStep(self.states["S" + str(i)],
+                    Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
                                          self.states["A" + str(i + 1)], SBOX))
             else:
                 self.propagations.append(
-                    Propagation.XORStep(self.states["A" + str(i)],
+                    Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
                                         self.states["P" + str(i)], self.states["T" + str(i)]))
                 self.propagations.append(
-                    Propagation.PermutationStep(self.states["P" + str(i)],
+                    Propagation.PermutationStep(STATE_SIZE, self.states["P" + str(i)],
                                                 self.states["M" + str(i)], P))
                 self.propagations.append(
-                    Propagation.MixColStep(self.states["M" + str(i)],
-                                           self.states["S" + str(i)])) # TODO change?
+                    Propagation.MixColStepQarma(STATE_ROW, STATE_COL, self.states["M" + str(i)],
+                                                 self.states["S" + str(i)], M4_3))
                 self.propagations.append(
-                    Propagation.SBOXStep(self.states["S" + str(i)],
+                    Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
                                          self.states["A" + str(i + 1)], SBOX))
 
-        # inner round forwards
+        # inner round
         self.propagations.append(
-            Propagation.MixColStep(self.states["A" + str(self.rounds + 1)],
-                                   self.states["a" + str(self.rounds + 1)]))
+            Propagation.PermutationStep(STATE_SIZE, self.states["A" + str(self.rounds + 1)],
+                                        self.states["I" + str(self.rounds + 1)], P))
+        self.propagations.append(
+            Propagation.MixColStepQarma(STATE_ROW, STATE_COL, self.states["I" + str(self.rounds + 1)],
+                                        self.states["I" + str(self.rounds + 1) + "_i"], M4_3))
+        self.propagations.append(
+            Propagation.PermutationStep(STATE_SIZE, self.states["I" + str(self.rounds + 1) + "_i"],
+                                        self.states["A" + str(self.rounds + 1) + "_i"], P))
 
         # tweak
-        for i in range(self.rounds): # TODO change?
-            self.propagations.append(Propagation.PermutationStep(
-                self.states["T" + str(i)], self.states["T" + str(i + 1)], H))
+        for i in range(self.rounds):
+            self.propagations.append(Propagation.UpdateTweakeyStepQarma(STATE_SIZE,
+                                                                 self.states["T" + str(i)],
+                                                                 self.states["T" + str(i + 1)],
+                                                                 H, LFSR_COMPUTATION_MATRIX, LFSR_LOOKUP))
 
         # backwards rounds
         for i in range((self.rounds + 1) * 2, self.rounds + 1, -1):
             if i == ((self.rounds + 1) * 2):
                 self.propagations.append(
-                    Propagation.XORStep(self.states["A" + str(i)],
+                    Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
                                         self.states["S" + str(i)],
                                         self.states["T" + str((self.rounds + 1) * 2 - i)]))
                 self.propagations.append(
-                    Propagation.SBOXStep(self.states["S" + str(i)],
+                    Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
                                          self.states["A" + str(i - 1)], SBOX))
             else:
                 self.propagations.append(
-                    Propagation.XORStep(self.states["A" + str(i)],
+                    Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
                                         self.states["P" + str(i)],
                                         self.states["T" + str((self.rounds + 1) * 2 - i)]))
                 self.propagations.append(
-                    Propagation.PermutationStep(self.states["P" + str(i)],
+                    Propagation.PermutationStep(STATE_SIZE, self.states["P" + str(i)],
                                                 self.states["M" + str(i)], P))
                 self.propagations.append(
-                    Propagation.MixColStep(self.states["M" + str(i)],
-                                           self.states["S" + str(i)]))
+                    Propagation.MixColStepQarma(STATE_ROW, STATE_COL, self.states["M" + str(i)],
+                                                 self.states["S" + str(i)], M4_3))
                 if i == self.rounds + 2:
                     self.propagations.append(
-                        Propagation.SBOXStep(self.states["S" + str(i)],
-                                             self.states["a" + str(i - 1)], SBOX))
+                        Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
+                                             self.states["I" + str(i - 1) + "_i"], SBOX))
                 else:
                     self.propagations.append(
-                        Propagation.SBOXStep(self.states["S" + str(i)],
+                        Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
                                              self.states["A" + str(i - 1)], SBOX))
 
     def _parseStateBlock(self, stateblock):
@@ -226,12 +229,14 @@ class MantisTrail(Trail.Trail):
                     assert name == "" or name == match[0]
                     name = match[0]
                     statestr = match[1].replace("x", "1").replace("-", "0")
-                    row.append([int(statestr, 2)])
+                    row.append({int(statestr, 2)})
                 state.append(row)
 
             name = name + str(curr_round)
-            assert name not in self.states
-            self.states[name] = QarmaState (name, state)
+            assert name not in self.states or curr_round == self.rounds + 1
+            if name in self.states:
+                name = name + "_i"
+            self.states[name] = QarmaState(name, state)
 
         elif num_states == 8:
             state = []
@@ -247,7 +252,7 @@ class MantisTrail(Trail.Trail):
                     assert name == "" or name == match[0]
                     name = match[0]
                     statestr = match[1].replace("x", "1").replace("-", "0")
-                    row.append([int(statestr, 2)])
+                    row.append({int(statestr, 2)})
                 state.append(row)
                 row = []
                 for i in range(4, 8):
@@ -255,7 +260,7 @@ class MantisTrail(Trail.Trail):
                     assert name2 == "" or name2 == match[0]
                     name2 = match[0]
                     statestr = match[1].replace("x", "1").replace("-", "0")
-                    row.append([int(statestr, 2)])
+                    row.append({int(statestr, 2)})
                 state2.append(row)
 
             name += str(curr_round)
@@ -305,8 +310,11 @@ class MantisTrail(Trail.Trail):
                 col += 1
             UI.StateUI(parentui, row, col, self.states["S" + str(i)])
             col += 1
+
         # inner round forwards
-        UI.StateUI(parentui, row, col, self.states["A" + str(self.rounds + 1)])
+        UI.StateUI(parentui, row, col, self.states["A" + str(self.rounds+1)])
+        col += 1
+        UI.StateUI(parentui, row, col, self.states["I" + str(self.rounds+1)])
 
         # tweak
         col = 0
@@ -338,8 +346,11 @@ class MantisTrail(Trail.Trail):
                 col += 1
             UI.StateUI(parentui, row, col, self.states["S" + str(i)])
             col += 1
+
         # inner round backwards
-        UI.StateUI(parentui, row, col, self.states["a" + str(self.rounds + 1)])
+        UI.StateUI(parentui, row, col, self.states["I" + str(self.rounds+1) + "_i"])
+        col += 1
+        UI.StateUI(parentui, row, col, self.states["A" + str(self.rounds+1) + "_i"])
 
         col = 1
         row += 1
@@ -401,7 +412,7 @@ class MantisTrail(Trail.Trail):
             print v
 
     def getActiveOnlyTrail(self):
-        newtrail = MantisTrail(self.rounds)
+        newtrail = QarmaTrail(self.rounds)
         for k, v in self.states.items():
             newtrail.states[k] = v.getActiveOnlyState()
 
@@ -413,7 +424,7 @@ class MantisTrail(Trail.Trail):
     def propagate(self):
         # do one propagation without mixcolumns, to speed them up later
         for p in self.propagations:
-            if not isinstance(p, Propagation.MixColStep):
+            if not isinstance(p, Propagation.MixColStepQarma):
                 p.propagate()
 
         # TODO: check for changes, do not just stupidly propagate N times
@@ -424,6 +435,7 @@ class MantisTrail(Trail.Trail):
         self._propagateSameCells()
 
     def _propagateSameCells(self):
+        '''
         cellcounter = 1
         for state in self.states.values():
             state.statenumbers = [0 for _ in range(16)]
@@ -432,14 +444,12 @@ class MantisTrail(Trail.Trail):
             outstate = self.states["S" + str(i)]
             permstate = self.states["P" + str(i)]
             addstate = self.states["A" + str(i)]
-            for col in range(4):
-                incol = [instate.at(row, col) for row in range(4)]
-                outcol = [outstate.at(row, col) for row in range(4)]
+            for col in range(STATE_COL):
+                incol = [instate.at(row, col) for row in range(STATE_ROW)]
+                outcol = [outstate.at(row, col) for row in range(STATE_ROW)]
                 if incol.count([0]) + outcol.count([0]) == 4:
                     states = [x for x in incol + outcol if x != [0]]
-                    newstate = Propagation.intersect(states[0], states[1])
-                    newstate = Propagation.intersect(newstate, states[2])
-                    newstate = Propagation.intersect(newstate, states[3])
+                    newstate = ((states[0] & states[1]) & states[2]) & states[3]
                     inidx = [i for i in range(4) if incol[i] != [0]]
                     outidx = [i for i in range(4) if outcol[i] != [0]]
                     if len(newstate) > 1:
@@ -458,9 +468,7 @@ class MantisTrail(Trail.Trail):
             outcol = [outstate.at(row, col) for row in range(4)]
             if incol.count([0]) + outcol.count([0]) == 4:
                 states = [x for x in incol + outcol if x != [0]]
-                newstate = Propagation.intersect(states[0], states[1])
-                newstate = Propagation.intersect(newstate, states[2])
-                newstate = Propagation.intersect(newstate, states[3])
+                newstate = ((states[0] & states[1]) & states[2]) & states[3]
                 inidx = [i for i in range(4) if incol[i] != [0]]
                 outidx = [i for i in range(4) if outcol[i] != [0]]
                 if len(newstate) > 1:
@@ -469,12 +477,13 @@ class MantisTrail(Trail.Trail):
                     for row in outidx:
                         outstate.statenumbers[row * 4 + col] = cellcounter
                     cellcounter += 1
+        '''
 
     def getSetOfCurrentStates(self):
         stateset = set()
         for state in self.states.values():
             for cell in state:
-                if cell != [0]:
+                if cell != {0}:
                     stateset.add(frozenset(cell))
 
         return stateset
@@ -504,7 +513,7 @@ class MantisTrail(Trail.Trail):
 
         inputposs = 1
         outputposs = 1
-        for i in range(16):
+        for i in range(STATE_SIZE):
             inputposs *= len(self.states["A0"].atI(i))
             outputposs *= len(self.states["A" + str((self.rounds + 1) * 2)].atI(i))
 
@@ -521,61 +530,61 @@ class MantisTrail(Trail.Trail):
     def exportToLatex(self, filehandle):
         output = []
         output.append(r"""
-\documentclass[a4paper,landscape,11pt]{article}
+    \documentclass[a4paper,landscape,11pt]{article}
 
-\usepackage[margin=.5in]{geometry}
-\usepackage{amsmath}
-\usepackage{xcolor}
-\usepackage{tikz}
-\usetikzlibrary{calc}
-\usetikzlibrary{arrows.meta}
-""")
+    \usepackage[margin=.5in]{geometry}
+    \usepackage{amsmath}
+    \usepackage{xcolor}
+    \usepackage{tikz}
+    \usetikzlibrary{calc}
+    \usetikzlibrary{arrows.meta}
+    """)
         for color, hexcode in COLORS.items():
             output.append("\definecolor{solarized" + color + "}{HTML}{" + hexcode[1:] + "}")
 
         output.append(r"""
-\colorlet{raster}{black}
+    \colorlet{raster}{black}
 
-\pgfmathsetmacro\hi{5}
-\pgfmathsetmacro\lo{-5}
-\pgfmathsetmacro{\xmax}{4}
-\pgfmathsetmacro{\ymax}{4}
-\pgfmathsetmacro{\xmaxm}{int(\xmax-1)}
-\pgfmathsetmacro{\ymaxm}{int(\ymax-1)}
+    \pgfmathsetmacro\hi{5}
+    \pgfmathsetmacro\lo{-5}
+    \pgfmathsetmacro{\xmax}{4}
+    \pgfmathsetmacro{\ymax}{4}
+    \pgfmathsetmacro{\xmaxm}{int(\xmax-1)}
+    \pgfmathsetmacro{\ymaxm}{int(\ymax-1)}
 
-\tikzset{next/.style={->,>=latex}}
-\newcommand{\drawstate}[4][]{
-    \begin{scope}[#1]
-      \foreach \row/\col/\colour in {#4} {\fill[\colour] (\col,-\row) rectangle ++(1,-1);}
-      \foreach \x in {1,...,\xmaxm} \draw[raster] (\x,0) -- ++(0,-\ymax); 
-      \foreach \y in {1,...,\ymaxm} \draw[raster] (0,-\y) -- ++(\xmax,0); 
-      \draw (0,0) rectangle (\xmax,-\ymax);
-      \coordinate (#2_west) at (0,-2);
-      \coordinate (#2_east) at (\xmax,-2);
-      \coordinate (#2_south) at (2,-\ymax);
-      \coordinate (#2_north) at (2,0);
-      %\node[above] at (2,0) {#3};
-    \end{scope}
-}
-\newcommand{\drawxor}[2][]{
-    \begin{scope}[#1]
-      \draw[thin] (2,-2) circle (2ex)
-                   +(-2ex,0) coordinate[name=#2_west] -- +(2ex,0) coordinate[name=#2_east]
-                   +(0,-2ex) coordinate[name=#2_south] -- +(0,2ex) coordinate[name=#2_north];
-    \end{scope}
-}
+    \tikzset{next/.style={->,>=latex}}
+    \newcommand{\drawstate}[4][]{
+        \begin{scope}[#1]
+          \foreach \row/\col/\colour in {#4} {\fill[\colour] (\col,-\row) rectangle ++(1,-1);}
+          \foreach \x in {1,...,\xmaxm} \draw[raster] (\x,0) -- ++(0,-\ymax); 
+          \foreach \y in {1,...,\ymaxm} \draw[raster] (0,-\y) -- ++(\xmax,0); 
+          \draw (0,0) rectangle (\xmax,-\ymax);
+          \coordinate (#2_west) at (0,-2);
+          \coordinate (#2_east) at (\xmax,-2);
+          \coordinate (#2_south) at (2,-\ymax);
+          \coordinate (#2_north) at (2,0);
+          %\node[above] at (2,0) {#3};
+        \end{scope}
+    }
+    \newcommand{\drawxor}[2][]{
+        \begin{scope}[#1]
+          \draw[thin] (2,-2) circle (2ex)
+                       +(-2ex,0) coordinate[name=#2_west] -- +(2ex,0) coordinate[name=#2_east]
+                       +(0,-2ex) coordinate[name=#2_south] -- +(0,2ex) coordinate[name=#2_north];
+        \end{scope}
+    }
 
-\newcommand{\SB}{\textsf{S}}
-\newcommand{\SR}{\textsf{P}}
-\newcommand{\MC}{\textsf{M}}
-\newcommand{\AC}{\textsf{+}}
+    \newcommand{\SB}{\textsf{S}}
+    \newcommand{\SR}{\textsf{P}}
+    \newcommand{\MC}{\textsf{M}}
+    \newcommand{\AC}{\textsf{+}}
 
-\begin{document}
-\pagestyle{empty}
+    \begin{document}
+    \pagestyle{empty}
 
-\begin{figure}[p]
-\centering
-""")
+    \begin{figure}[p]
+    \centering
+    """)
         hi = r"\hi"
         lo = r"\lo"
         tin = "I"  # r"{\text{in}}"
@@ -740,10 +749,10 @@ class MantisTrail(Trail.Trail):
                     x) + "," + str(y) + r") {};")
 
         output.append(r"""\end{tikzpicture}
-\end{figure}
+    \end{figure}
 
-\end{document}
-""")
+    \end{document}
+    """)
         output = "\n".join(output)
 
         filehandle.write(output)

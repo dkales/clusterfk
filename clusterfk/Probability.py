@@ -14,7 +14,8 @@ class ProbabilityStep:
     def getProbability(self,verbose=False):
         raise NotImplementedError("Subclasses need to implement this")
 
-class FullroundStep(ProbabilityStep):
+#TODO make nicer and reuse more steps
+class FullroundStepMantis(ProbabilityStep):
     def __init__(self, round, staterow, statecol, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sbox, P):
         self.round = round
         self.staterow = staterow
@@ -50,6 +51,8 @@ class FullroundStep(ProbabilityStep):
                 # samedict[self.sboxstate.statenumbers[i]] = []
             # samedict[self.sboxstate.statenumbers[i]].append(i)
 
+
+        #Calculate Props for SBOX-step
         for column, probs in self.sboxstate.columnprobs.items():
             # if number == 0 or len(group) == 1:
                 # for i in group:
@@ -68,7 +71,8 @@ class FullroundStep(ProbabilityStep):
                 part = prob
                 for idx,x in enumerate(values):
                     j = column[idx]
-                    part *= float(sum([self.ddt[x][y] for y in self.addstate.atI(j)])) / sum(self.ddt[x])
+                    # TODO: next line not needed? could be done in below loop
+                    part *= float(sum([self.ddt[x][y] for y in self.addstate.atI(j)])) / sum(self.ddt[x]) # guenstige/moegliche
                     for y in self.addstate.atI(j):
                         self.addstate.stateprobs[j][y] += prob * float(self.ddt[x][y]) / sum(self.ddt[x])
                 sboxprob += part
@@ -81,21 +85,18 @@ class FullroundStep(ProbabilityStep):
         for i in range(self.statesize):
             self.addstate.stateprobs[i] = [float(x)/sum(self.addstate.stateprobs[i]) for x in self.addstate.stateprobs[i]]
 
-
         sboxprob = overall_prob
+        # calculate perm-state probs
         for i in range(self.statesize):
-            if self.tweak.atI(i) != {0}:
-                assert len(self.tweak.atI(i)) == 1
+            assert len(self.tweak.atI(i)) == 1
+            t = Utils.first(self.tweak.atI(i))
+            if t != {0}:
                 # outprobs[i] = [outprobs[i][x^self.tweak.atI(i)[0]] for x in range(16)]
-                self.permstate.stateprobs[i] = [self.addstate.stateprobs[i][x^Utils.first(self.tweak.atI(i))] for x in range(self.statesize)]
+                self.permstate.stateprobs[i] = [self.addstate.stateprobs[i][x^t] for x in range(self.statesize)]
             else:
                 self.permstate.stateprobs[i] = [self.addstate.stateprobs[i][x] for x in range(self.statesize)]
 
-        # print "permstate.stateprobs"
-        # print self.permstate.stateprobs
-        # print "outprobs"
-        # print outprobs
-        # permute state probs
+        # permute state probs - calculate mixcol probs
         for i in range(self.statesize):
             self.mixcolstate.stateprobs[i] = self.permstate.stateprobs[self.P[i]]
 
@@ -107,7 +108,7 @@ class FullroundStep(ProbabilityStep):
             outset = set()
             colprob = 0.0
             colprob_all = 0.0
-            #TODO make dynamic
+
             self.sboxstate2.columnprobs[(0+col,4+col,8+col,12+col)] = {}
             for a,b,c,d in itertools.product(self.sboxstate2.at(0, col), self.sboxstate2.at(1, col), self.sboxstate2.at(2, col), self.sboxstate2.at(3, col)):
                 outset.add((a,b,c,d))
@@ -127,7 +128,6 @@ class FullroundStep(ProbabilityStep):
             for val, prob in probs.items():
                 probs[val] = prob/total
 
-            #TODO make dynamic
             for val, prob in probs.items():
                 self.sboxstate2.stateprobs[col[0]][val[0]] += prob
                 self.sboxstate2.stateprobs[col[1]][val[1]] += prob
@@ -149,7 +149,132 @@ class FullroundStep(ProbabilityStep):
 
         return (overall_prob, sboxprob, mixcolprob)
 
-class MantisInnerRoundStep(ProbabilityStep):
+
+class FullroundStepQarma(ProbabilityStep):
+    def __init__(self, round, staterow, statecol, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sbox,
+                 P, M):
+        self.round = round
+        self.staterow = staterow
+        self.statecol = statecol
+        self.statesize = staterow * statecol
+        self.sboxstate = sboxstate
+        self.sboxstate2 = sboxstate2
+        self.tweak = tweak
+        self.addstate = addstate
+        self.permstate = permstate
+        self.mixcolstate = mixcolstate
+        self.sbox = sbox
+        self.P = P
+        self.M = M
+        self._initDDT(sbox)
+
+    def _initDDT(self, sbox):
+        size = len(sbox)
+        assert (size == self.statesize)
+        ddt = [[0 for _ in range(size)] for _ in range(size)]
+        for in1, in2 in itertools.product(range(size), repeat=2):
+            out1, out2 = sbox[in1], sbox[in2]
+            ddt[in1 ^ in2][out1 ^ out2] += 1
+        self.ddt = ddt
+
+    def getProbability(self, verbose=False):
+        overall_prob = 1.0
+
+        # Calculate Props for SBOX-step
+        for column, probs in self.sboxstate.columnprobs.items():
+
+            sboxprob = 0.0
+            for values, prob in probs.items():
+                part = prob
+                for idx, x in enumerate(values):
+                    j = column[idx]
+                    # TODO: next line not needed? could be done in below loop
+                    part *= float(sum([self.ddt[x][y] for y in self.addstate.atI(j)])) / sum(
+                        self.ddt[x])  # guenstige/moegliche
+                    for y in self.addstate.atI(j):
+                        self.addstate.stateprobs[j][y] += prob * float(self.ddt[x][y]) / sum(self.ddt[x])
+                sboxprob += part
+
+            # if verbose:
+            # print "SBOX", column, math.log(sboxprob,2)
+            overall_prob *= sboxprob
+
+        # normalize addstate
+        for i in range(self.statesize):
+            self.addstate.stateprobs[i] = [float(x) / sum(self.addstate.stateprobs[i]) for x in
+                                           self.addstate.stateprobs[i]]
+
+        sboxprob = overall_prob
+        # calculate perm-state probs
+        # TODO: add LFSR in any way?
+        for i in range(self.statesize):
+            assert len(self.tweak.atI(i)) == 1
+            t = Utils.first(self.tweak.atI(i))
+            if t != {0}:
+                self.permstate.stateprobs[i] = [self.addstate.stateprobs[i][x ^ t] for x in range(self.statesize)]
+            else:
+                self.permstate.stateprobs[i] = [self.addstate.stateprobs[i][x] for x in range(self.statesize)]
+
+        # permute state probs - calculate mixcol probs
+        for i in range(self.statesize):
+            self.mixcolstate.stateprobs[i] = self.permstate.stateprobs[self.P[i]]
+
+        self.sboxstate2.columnprobs = {}
+        for col in range(self.statecol):
+            # print "-"*40
+            incol = [self.mixcolstate.at(row, col) for row in range(4)]
+            outset = set()
+            colprob = 0.0
+            colprob_all = 0.0
+
+            self.sboxstate2.columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)] = {}
+            for a, b, c, d in itertools.product(self.sboxstate2.at(0, col), self.sboxstate2.at(1, col),
+                                                self.sboxstate2.at(2, col), self.sboxstate2.at(3, col)):
+                outset.add((a, b, c, d))
+            for a, b, c, d in itertools.product(incol[0], incol[1], incol[2], incol[3]):
+                prob = self.mixcolstate.stateprobs[0 + col][a] * self.mixcolstate.stateprobs[4 + col][b] * \
+                       self.mixcolstate.stateprobs[8 + col][c] * self.mixcolstate.stateprobs[12 + col][d]
+                result = (Utils.rotl(b, self.M[0][1]) ^ Utils.rotl(c, self.M[0][2]) ^ Utils.rotl(d, self.M[0][3]),
+                          Utils.rotl(a, self.M[1][0]) ^ Utils.rotl(c, self.M[1][2]) ^ Utils.rotl(d, self.M[1][3]),
+                          Utils.rotl(a, self.M[2][0]) ^ Utils.rotl(b, self.M[2][1]) ^ Utils.rotl(d, self.M[2][3]),
+                          Utils.rotl(a, self.M[3][0]) ^ Utils.rotl(b, self.M[3][1]) ^ Utils.rotl(c, self.M[3][2]))
+                if result in outset:
+                    colprob += prob
+                    self.sboxstate2.columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)][result] = prob
+                colprob_all += prob
+
+            # print col, colprob, colprob_all
+            overall_prob *= colprob
+
+        for col, probs in self.sboxstate2.columnprobs.items():
+            total = sum(probs.values())
+            for val, prob in probs.items():
+                probs[val] = prob / total
+
+            for val, prob in probs.items():
+                self.sboxstate2.stateprobs[col[0]][val[0]] += prob
+                self.sboxstate2.stateprobs[col[1]][val[1]] += prob
+                self.sboxstate2.stateprobs[col[2]][val[2]] += prob
+                self.sboxstate2.stateprobs[col[3]][val[3]] += prob
+
+        for i in range(self.statesize):
+            self.sboxstate2.stateprobs[i] = [float(x) / sum(self.sboxstate2.stateprobs[i]) for x in
+                                             self.sboxstate2.stateprobs[i]]
+
+        mixcolprob = overall_prob / sboxprob
+        # print self.sboxstate.stateprobs
+        # print "------"
+        # print self.mixcolstate.stateprobs
+        # print "------"
+        # print self.sboxstate2.stateprobs
+
+        if verbose:
+            print self.sboxstate.name, overall_prob, math.log(overall_prob, 2)
+
+        return (overall_prob, sboxprob, mixcolprob)
+
+
+class InnerRoundStepMantis(ProbabilityStep):
     def __init__(self, sboxstatein, mixcolstatein, mixcolstateout, sboxstateout, sbox):
         self.sboxstatein = sboxstatein
         self.sboxstateout = sboxstateout
@@ -225,7 +350,112 @@ class MantisInnerRoundStep(ProbabilityStep):
         return (overall_prob, overall_prob, 1)
 
 
-class FullroundInverseStep(ProbabilityStep):
+class InnerRoundStepQarma(ProbabilityStep):
+    def __init__(self, staterow, statecol, sboxstatein, permstatein, mixcolstatein, mixcolstateout, permstateout, sboxstateout, sbox, P, M):
+        self.statesize = staterow * statecol
+        self.staterow = staterow
+        self.statecol = statecol
+        self.sboxstatein = sboxstatein
+        self.sboxstateout = sboxstateout
+        self.permstatein = permstatein
+        self.permstateout = permstateout
+        self.mixcolstatein = mixcolstatein
+        self.mixcolstateout = mixcolstateout
+        self.sbox = sbox
+        self.P = P
+        self.M = M
+        self._initDDT(sbox)
+
+    def _initDDT(self, sbox):
+        size = len(sbox)
+        ddt = [[0 for _ in range(size)] for _ in range(size)]
+        for in1, in2 in itertools.product(range(size), repeat=2):
+            out1, out2 = sbox[in1], sbox[in2]
+            ddt[in1 ^ in2][out1 ^ out2] += 1
+        self.ddt = ddt
+
+    def getProbability(self, verbose=False):
+        overall_prob = 1.0
+
+        # sbox forward round:
+        for i in range(16):
+            sboxprob = 0.0
+            for x in self.sboxstatein.atI(i):
+                sboxprob += self.sboxstatein.stateprobs[i][x] * float(
+                    sum([self.ddt[x][y] for y in self.permstatein.atI(i)])) / sum(self.ddt[x])
+                for y in self.permstatein.atI(i):
+                    self.permstatein.stateprobs[i][y] += \
+                        self.sboxstatein.stateprobs[i][x] * float(self.ddt[x][y]) / sum(self.ddt[x])
+            overall_prob *= sboxprob
+
+            self.permstatein.stateprobs[i] = [float(x) / sum(self.permstatein.stateprobs[i]) for x in
+                                                self.permstatein.stateprobs[i]]
+
+
+        # perm forward round - permute state probs
+        for i in range(self.statesize):
+            self.mixcolstatein.stateprobs[i] = self.permstatein.stateprobs[self.P[i]]
+
+        # mixcol
+        self.mixcolstateout.columnprobs = {}
+        for col in range(self.statecol):
+            incol = [self.mixcolstatein.at(row, col) for row in range(4)]
+            outset = set()
+            colprob = 0.0
+            colprob_all = 0.0
+
+            self.mixcolstateout.columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)] = {}
+            for a, b, c, d in itertools.product(self.mixcolstateout.at(0, col), self.mixcolstateout.at(1, col),
+                                                self.mixcolstateout.at(2, col), self.mixcolstateout.at(3, col)):
+                outset.add((a, b, c, d))
+            for a, b, c, d in itertools.product(incol[0], incol[1], incol[2], incol[3]):
+                prob = self.mixcolstatein.stateprobs[0 + col][a] * self.mixcolstatein.stateprobs[4 + col][b] * \
+                       self.mixcolstatein.stateprobs[8 + col][c] * self.mixcolstatein.stateprobs[12 + col][d]
+                result = (Utils.rotl(b, self.M[0][1]) ^ Utils.rotl(c, self.M[0][2]) ^ Utils.rotl(d, self.M[0][3]),
+                          Utils.rotl(a, self.M[1][0]) ^ Utils.rotl(c, self.M[1][2]) ^ Utils.rotl(d, self.M[1][3]),
+                          Utils.rotl(a, self.M[2][0]) ^ Utils.rotl(b, self.M[2][1]) ^ Utils.rotl(d, self.M[2][3]),
+                          Utils.rotl(a, self.M[3][0]) ^ Utils.rotl(b, self.M[3][1]) ^ Utils.rotl(c, self.M[3][2]))
+                if result in outset:
+                    colprob += prob
+                    self.mixcolstateout.columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)][result] = prob
+                colprob_all += prob
+
+            # print col, colprob, colprob_all
+            overall_prob *= colprob
+
+
+        # temporary hack, assume uniform distribution in inner step
+        for i in range(16):
+            self.mixcolstateout.stateprobs[i] = [
+                1.0 / len(self.mixcolstateout.atI(i)) if x in self.mixcolstateout.atI(i) else 0.0 for x in range(16)]
+
+
+        # perm backward round - permute state probs
+        for i in range(self.statesize):
+            self.permstateout.stateprobs[i] = self.mixcolstateout.stateprobs[self.P[i]]
+
+        # sbox backward round
+        for i in range(16):
+            sboxprob = 0.0
+            for x in self.permstateout.atI(i):
+                sboxprob += self.permstateout.stateprobs[i][x] * float(
+                    sum([self.ddt[x][y] for y in self.sboxstateout.atI(i)])) / sum(self.ddt[x])
+                for y in self.sboxstateout.atI(i):
+                    self.sboxstateout.stateprobs[i][y] += \
+                        self.permstateout.stateprobs[i][x] * float(self.ddt[x][y]) / sum(self.ddt[x])
+            overall_prob *= sboxprob
+
+            self.sboxstateout.stateprobs[i] = [float(x) / sum(self.sboxstateout.stateprobs[i]) for x in
+                                               self.sboxstateout.stateprobs[i]]
+
+
+        if verbose:
+            print "I", overall_prob, math.log(overall_prob, 2)
+
+        return (overall_prob, overall_prob, 1)
+
+
+class FullroundInverseStepMantis(ProbabilityStep):
     def __init__(self, round, staterow, statecol, sboxstate, mixcolstate, permstate, addstate, tweak, sboxstate2, sbox, P):
         self.round = round
         self.staterow = staterow
@@ -261,7 +491,6 @@ class FullroundInverseStep(ProbabilityStep):
             colprob = 0.0
             colprob_all = 0.0
 
-            #TODO make dynamic
             self.mixcolstate.columnprobs[(0+col,4+col,8+col,12+col)] = {}
             for a,b,c,d in itertools.product(self.mixcolstate.at(0, col), self.mixcolstate.at(1, col), self.mixcolstate.at(2, col), self.mixcolstate.at(3, col)):
                 outset.add((a,b,c,d))
@@ -281,7 +510,6 @@ class FullroundInverseStep(ProbabilityStep):
             for val, prob in probs.items():
                 probs[val] = prob/total
 
-            #TODO make dynamic
             for val, prob in probs.items():
                 self.mixcolstate.stateprobs[col[0]][val[0]] += prob
                 self.mixcolstate.stateprobs[col[1]][val[1]] += prob
@@ -298,7 +526,6 @@ class FullroundInverseStep(ProbabilityStep):
             self.permstate.stateprobs[self.P[i]] = list(self.mixcolstate.stateprobs[i])
         self.permstate.columnprobs = {}
         for col, probs in self.mixcolstate.columnprobs.items():
-            #TODO make dynamic
             self.permstate.columnprobs[(self.P[col[0]], self.P[col[1]], self.P[col[2]], self.P[col[3]])] = probs.copy()
 
         self.addstate.columnprobs = {}
@@ -311,7 +538,6 @@ class FullroundInverseStep(ProbabilityStep):
         for col, probs in self.permstate.columnprobs.items():
             self.addstate.columnprobs[col] = {}
             for values, prob in probs.items():
-                #TODO make dynamic
                 self.addstate.columnprobs[col][(values[0]^Utils.first(self.tweak.atI(col[0])), values[1]^Utils.first(self.tweak.atI(col[1])), values[2]^Utils.first(self.tweak.atI(col[2])), values[3]^Utils.first(self.tweak.atI(col[3])))] = prob
 
 
@@ -352,6 +578,142 @@ class FullroundInverseStep(ProbabilityStep):
         return (overall_prob, sboxprob, mixcolprob)
 
 
+class FullroundInverseStepQarma(ProbabilityStep):
+    def __init__(self, round, staterow, statecol, sboxstate, mixcolstate, permstate, addstate, tweak, sboxstate2, sbox,
+                 P, M):
+        self.round = round
+        self.staterow = staterow
+        self.statecol = statecol
+        self.statesize = staterow * statecol
+        self.sboxstate = sboxstate
+        self.sboxstate2 = sboxstate2
+        self.tweak = tweak
+        self.addstate = addstate
+        self.permstate = permstate
+        self.mixcolstate = mixcolstate
+        self.sbox = sbox
+        self.P = P
+        self.M = M
+        self._initDDT(sbox)
+
+    def _initDDT(self, sbox):
+        size = len(sbox)
+        assert (size == self.statesize)
+        ddt = [[0 for _ in range(size)] for _ in range(size)]
+        for in1, in2 in itertools.product(range(size), repeat=2):
+            out1, out2 = sbox[in1], sbox[in2]
+            ddt[in1 ^ in2][out1 ^ out2] += 1
+        self.ddt = ddt
+
+    def getProbability(self, verbose=False):
+        overall_prob = 1.0
+
+        self.mixcolstate.columnprobs = {}
+        for col in range(self.statecol):
+            # print "-"*40
+            incol = [self.sboxstate.at(row, col) for row in range(self.staterow)]
+            outset = set()
+            colprob = 0.0
+            colprob_all = 0.0
+
+            self.mixcolstate.columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)] = {}
+            for a, b, c, d in itertools.product(self.mixcolstate.at(0, col), self.mixcolstate.at(1, col),
+                                                self.mixcolstate.at(2, col), self.mixcolstate.at(3, col)):
+                outset.add((a, b, c, d))
+            for a, b, c, d in itertools.product(incol[0], incol[1], incol[2], incol[3]):
+                prob = self.sboxstate.stateprobs[0 + col][a] * self.sboxstate.stateprobs[4 + col][b] * \
+                       self.sboxstate.stateprobs[8 + col][c] * self.sboxstate.stateprobs[12 + col][d]
+                #result = (b ^ c ^ d, a ^ c ^ d, a ^ b ^ d, a ^ b ^ c)
+                result = (Utils.rotl(b, self.M[0][1]) ^ Utils.rotl(c, self.M[0][2]) ^ Utils.rotl(d, self.M[0][3]),
+                          Utils.rotl(a, self.M[1][0]) ^ Utils.rotl(c, self.M[1][2]) ^ Utils.rotl(d, self.M[1][3]),
+                          Utils.rotl(a, self.M[2][0]) ^ Utils.rotl(b, self.M[2][1]) ^ Utils.rotl(d, self.M[2][3]),
+                          Utils.rotl(a, self.M[3][0]) ^ Utils.rotl(b, self.M[3][1]) ^ Utils.rotl(c, self.M[3][2]))
+
+                if result in outset:
+                    colprob += prob
+                    self.mixcolstate.columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)][result] = prob
+                colprob_all += prob
+
+            # print col, colprob, colprob_all
+            overall_prob *= colprob
+
+        for col, probs in self.mixcolstate.columnprobs.items():
+            total = sum(probs.values())
+            for val, prob in probs.items():
+                probs[val] = prob / total
+
+            for val, prob in probs.items():
+                self.mixcolstate.stateprobs[col[0]][val[0]] += prob
+                self.mixcolstate.stateprobs[col[1]][val[1]] += prob
+                self.mixcolstate.stateprobs[col[2]][val[2]] += prob
+                self.mixcolstate.stateprobs[col[3]][val[3]] += prob
+
+        mixcolprob = overall_prob
+        # normalize probablities for mixcols
+        for i in range(self.statesize):
+            self.mixcolstate.stateprobs[i] = [float(x) / sum(self.mixcolstate.stateprobs[i]) for x in
+                                              self.mixcolstate.stateprobs[i]]
+
+        # propagate to perm with correct permutation of probabilites
+        for i in range(self.statesize):
+            self.permstate.stateprobs[self.P[i]] = list(self.mixcolstate.stateprobs[i])
+        self.permstate.columnprobs = {}
+        for col, probs in self.mixcolstate.columnprobs.items():
+            self.permstate.columnprobs[(self.P[col[0]], self.P[col[1]], self.P[col[2]], self.P[col[3]])] = probs.copy()
+
+        self.addstate.columnprobs = {}
+        for i in range(self.statesize):
+            if self.tweak.atI(i) != {0}:
+                assert len(self.tweak.atI(i)) == 1
+                self.addstate.stateprobs[i] = [self.permstate.stateprobs[i][x ^ Utils.first(self.tweak.atI(i))] for x in
+                                               range(self.statesize)]
+            else:
+                self.addstate.stateprobs[i] = [self.permstate.stateprobs[i][x] for x in range(16)]
+        for col, probs in self.permstate.columnprobs.items():
+            self.addstate.columnprobs[col] = {}
+            for values, prob in probs.items():
+                self.addstate.columnprobs[col][(
+                values[0] ^ Utils.first(self.tweak.atI(col[0])), values[1] ^ Utils.first(self.tweak.atI(col[1])),
+                values[2] ^ Utils.first(self.tweak.atI(col[2])),
+                values[3] ^ Utils.first(self.tweak.atI(col[3])))] = prob
+
+        for column, probs in self.addstate.columnprobs.items():
+            sboxprob = 0.0
+            for values, prob in probs.items():
+                part = prob
+                for idx, x in enumerate(values):
+                    j = column[idx]
+                    part *= float(sum([self.ddt[x][y] for y in self.sboxstate2.atI(j)])) / sum(self.ddt[x])
+                    for y in self.sboxstate2.atI(j):
+                        self.sboxstate2.stateprobs[j][y] += prob * float(self.ddt[x][y]) / sum(self.ddt[x])
+                sboxprob += part
+
+            # if verbose:
+            # print "SBOX", column, math.log(sboxprob,2)
+            overall_prob *= sboxprob
+
+        # for i in range(16):
+        # sboxprob = 0.0
+        # for x in self.addstate.atI(i):
+        # sboxprob += self.addstate.stateprobs[i][x] * float(sum([self.ddt[x][y] for y in self.sboxstate2.atI(i)])) / sum(self.ddt[x])
+        # for y in self.sboxstate2.atI(i):
+        # self.sboxstate2.stateprobs[i][y] += \
+        # self.addstate.stateprobs[i][x] * float(self.ddt[x][y]) / sum(self.ddt[x])
+        # overall_prob *= sboxprob
+
+        # normalize sbox2 probs
+        for i in range(self.statesize):
+            self.sboxstate2.stateprobs[i] = [float(x) / sum(self.sboxstate2.stateprobs[i]) for x in
+                                             self.sboxstate2.stateprobs[i]]
+
+        sboxprob = overall_prob / mixcolprob
+        if verbose:
+            print self.sboxstate.name, overall_prob, math.log(overall_prob, 2)
+
+        return (overall_prob, sboxprob, mixcolprob)
+
+
+#TODO: make like this
 # class SBOXProbabilityStep(ProbabilityStep):
     # def __init__(self, instate, outstate, sbox):
         # self.instate = instate
