@@ -87,21 +87,11 @@ class XORStep(PropagationStep):
 
 
 class SBOXStep(PropagationStep):
-    def __init__(self, statesize, instate, outstate, sbox):
+    def __init__(self, statesize, instate, outstate, DDT):
         self.statesize = statesize
         self.instate = instate
         self.outstate = outstate
-        self.sbox = sbox
-        self._initDDT(sbox)
-
-    def _initDDT(self, sbox):
-        size = len(sbox)
-        assert(self.statesize == size)
-        ddt = [[0 for _ in range(size)] for _ in range(size)]
-        for in1, in2 in itertools.product(range(size), repeat=2):
-            out1, out2 = sbox[in1], sbox[in2]
-            ddt[in1^in2][out1^out2] += 1
-        self.ddt = ddt
+        self.ddt = DDT
 
     def _getDDTState(self, state):
         ret = set()

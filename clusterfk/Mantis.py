@@ -83,6 +83,7 @@ class MantisTrail(Trail.Trail):
     def __init__(self, rounds, filename):
         self.rounds = rounds
         self.states = {}
+        self.sboxDDT = Utils.initDDT(SBOX)
 
         with open(filename, "r") as f:
             content = f.readlines()
@@ -103,14 +104,14 @@ class MantisTrail(Trail.Trail):
                     Probability.FullroundStepMantis(i, STATE_ROW, STATE_COL,
                         self.states["S"+str(i)], self.states["A"+str(i+1)],
                         self.states["T"+str(i+1)],
-                        self.states["P"+str(i+1)], self.states["M"+str(i+1)], self.states["S"+str(i+1)], SBOX, P))
+                        self.states["P"+str(i+1)], self.states["M"+str(i+1)], self.states["S"+str(i+1)], self.sboxDDT, P))
 
         self.probabilities.append(
-                Probability.InnerRoundStepMantis(
+                Probability.InnerRoundStepMantis(STATE_ROW, STATE_COL,
                     self.states["S"+str(self.rounds)], 
                     self.states["A"+str(self.rounds+1)],
                     self.states["a"+str(self.rounds+1)], 
-                    self.states["S"+str(self.rounds+2)], SBOX))
+                    self.states["S"+str(self.rounds+2)], self.sboxDDT))
 
         for i in range(self.rounds+2, (self.rounds+1)*2):
             self.probabilities.append(
@@ -118,22 +119,22 @@ class MantisTrail(Trail.Trail):
                         self.states["S"+str(i)], self.states["M"+str(i)],
                         self.states["P"+str(i)], self.states["A"+str(i)],
                         self.states["T"+str((self.rounds+1)*2 - i)],
-                        self.states["S"+str(i+1)], SBOX,P))
+                        self.states["S"+str(i+1)], self.sboxDDT,P))
         # return
         # for i in range(self.rounds+1):
             # self.probabilities.append(
                     # Probability.SBOXProbabilityStep(self.states["S"+str(i)],
-                        # self.states["A"+str(i+1)], SBOX))
+                        # self.states["A"+str(i+1)], self.sboxDDT))
 
         # for i in range((self.rounds+1)*2, self.rounds+1, -1):
             # if i==self.rounds+2:
                 # self.probabilities.append(
                         # Probability.SBOXProbabilityStep(self.states["a"+str(i-1)],
-                            # self.states["S"+str(i)], SBOX))
+                            # self.states["S"+str(i)], self.sboxDDT))
             # else:
                 # self.probabilities.append(
                         # Probability.SBOXProbabilityStep(self.states["A"+str(i-1)],
-                            # self.states["S"+str(i)], SBOX))
+                            # self.states["S"+str(i)], self.sboxDDT))
 
     def _addPropagation(self):
         self.propagations = []
@@ -144,7 +145,7 @@ class MantisTrail(Trail.Trail):
                             self.states["S"+str(i)], self.states["T"+str(i)]))
                 self.propagations.append(
                         Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
-                            self.states["A"+str(i+1)], SBOX))
+                            self.states["A"+str(i+1)], self.sboxDDT))
             else:
                 self.propagations.append(
                         Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
@@ -157,7 +158,7 @@ class MantisTrail(Trail.Trail):
                                                      self.states["S"+str(i)]))
                 self.propagations.append(
                         Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
-                            self.states["A"+str(i+1)], SBOX))
+                            self.states["A"+str(i+1)], self.sboxDDT))
 
         # inner round forwards
         self.propagations.append(
@@ -178,7 +179,7 @@ class MantisTrail(Trail.Trail):
                             self.states["T"+str((self.rounds+1)*2 -i)]))
                 self.propagations.append(
                         Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
-                            self.states["A"+str(i-1)], SBOX))
+                            self.states["A"+str(i-1)], self.sboxDDT))
             else:
                 self.propagations.append(
                         Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
@@ -193,11 +194,11 @@ class MantisTrail(Trail.Trail):
                 if i==self.rounds+2:
                     self.propagations.append(
                             Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
-                                self.states["a"+str(i-1)], SBOX))
+                                self.states["a"+str(i-1)], self.sboxDDT))
                 else:
                     self.propagations.append(
                             Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
-                                self.states["A"+str(i-1)], SBOX))
+                                self.states["A"+str(i-1)], self.sboxDDT))
 
 
     def _parseStateBlock(self, stateblock):

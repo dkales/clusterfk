@@ -94,6 +94,7 @@ class QarmaTrail(Trail.Trail):
     def __init__(self, rounds, filename):
         self.rounds = rounds
         self.states = {}
+        self.sboxDDT = Utils.initDDT(SBOX)
 
         with open(filename, "r") as f:
             content = f.readlines()
@@ -114,7 +115,7 @@ class QarmaTrail(Trail.Trail):
                                           self.states["S" + str(i)], self.states["A" + str(i + 1)],
                                           self.states["T" + str(i + 1)],
                                           self.states["P" + str(i + 1)], self.states["M" + str(i + 1)],
-                                          self.states["S" + str(i + 1)], SBOX, P, M4_3))
+                                          self.states["S" + str(i + 1)], self.sboxDDT, P, M4_3))
 
         self.probabilities.append(
             Probability.InnerRoundStepQarma(STATE_ROW, STATE_COL,
@@ -123,7 +124,7 @@ class QarmaTrail(Trail.Trail):
                 self.states["I" + str(self.rounds + 1)],
                 self.states["I" + str(self.rounds + 1) + "_i"],
                 self.states["A" + str(self.rounds + 1) + "_i"],
-                self.states["S" + str(self.rounds + 2)], SBOX, P, M4_3))
+                self.states["S" + str(self.rounds + 2)], self.sboxDDT, P, M4_3))
 
         for i in range(self.rounds + 2, (self.rounds + 1) * 2):
             self.probabilities.append(
@@ -131,7 +132,7 @@ class QarmaTrail(Trail.Trail):
                                                  self.states["S" + str(i)], self.states["M" + str(i)],
                                                  self.states["P" + str(i)], self.states["A" + str(i)],
                                                  self.states["T" + str((self.rounds + 1) * 2 - i)],
-                                                 self.states["S" + str(i + 1)], SBOX, P, M4_3))
+                                                 self.states["S" + str(i + 1)], self.sboxDDT, P, M4_3))
 
     def _addPropagation(self):
         self.propagations = []
@@ -142,7 +143,7 @@ class QarmaTrail(Trail.Trail):
                                         self.states["S" + str(i)], self.states["T" + str(i)]))
                 self.propagations.append(
                     Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
-                                         self.states["A" + str(i + 1)], SBOX))
+                                         self.states["A" + str(i + 1)], self.sboxDDT))
             else:
                 self.propagations.append(
                     Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
@@ -155,7 +156,7 @@ class QarmaTrail(Trail.Trail):
                                                  self.states["S" + str(i)], M4_3))
                 self.propagations.append(
                     Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
-                                         self.states["A" + str(i + 1)], SBOX))
+                                         self.states["A" + str(i + 1)], self.sboxDDT))
 
         # inner round
         self.propagations.append(
@@ -184,7 +185,7 @@ class QarmaTrail(Trail.Trail):
                                         self.states["T" + str((self.rounds + 1) * 2 - i)]))
                 self.propagations.append(
                     Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
-                                         self.states["A" + str(i - 1)], SBOX))
+                                         self.states["A" + str(i - 1)], self.sboxDDT))
             else:
                 self.propagations.append(
                     Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
@@ -199,11 +200,11 @@ class QarmaTrail(Trail.Trail):
                 if i == self.rounds + 2:
                     self.propagations.append(
                         Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
-                                             self.states["I" + str(i - 1) + "_i"], SBOX))
+                                             self.states["I" + str(i - 1) + "_i"], self.sboxDDT))
                 else:
                     self.propagations.append(
                         Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
-                                             self.states["A" + str(i - 1)], SBOX))
+                                             self.states["A" + str(i - 1)], self.sboxDDT))
 
     def _parseStateBlock(self, stateblock):
         assert len(stateblock) == 4
