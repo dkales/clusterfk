@@ -35,6 +35,7 @@ class ProbabilityStep:
 
     def SBOXProbability(self, statesize, instate, outstate, ddt):
         overall_prob = 1.0
+
         for i in range(statesize):
             sboxprob = 0.0
             for x in instate.atI(i):
@@ -160,10 +161,10 @@ class FullroundStepMantis(ProbabilityStep):
         # normalize sboxstate2
         self.NormalizeStateProbs(self.statesize, self.sboxstate2)
 
+        overall_prob = sboxprob * mixcolprob
         if verbose:
             print self.sboxstate.name, overall_prob, math.log(overall_prob, 2)
 
-        overall_prob *= sboxprob * mixcolprob
         return (overall_prob, sboxprob, mixcolprob)
 
 
@@ -215,7 +216,6 @@ class InnerRoundStepMantis(ProbabilityStep):
 
         # sbox backward round
         overall_prob *= self.SBOXProbability(self.statesize, self.mixcolstateout, self.sboxstateout, self.ddt)
-
         if verbose:
             print "I", overall_prob, math.log(overall_prob, 2)
 
@@ -272,10 +272,10 @@ class FullroundInverseStepMantis(ProbabilityStep):
         # normalize sbox2 probs
         self.NormalizeStateProbs(self.statesize, self.sboxstate2)
 
+        overall_prob *= mixcolprob * sboxprob
         if verbose:
             print self.sboxstate.name, overall_prob, math.log(overall_prob, 2)
 
-        overall_prob *= mixcolprob * sboxprob
         return (overall_prob, sboxprob, mixcolprob)
 
 
@@ -317,10 +317,10 @@ class FullroundStepQarma(ProbabilityStep):
         # normalize sboxstate2
         self.NormalizeStateProbs(self.statesize, self.sboxstate2)
 
+        overall_prob *= sboxprob * mixcolprob
         if verbose:
             print self.sboxstate.name, overall_prob, math.log(overall_prob, 2)
 
-        overall_prob *= sboxprob * mixcolprob
         return (overall_prob, sboxprob, mixcolprob)
 
 
@@ -356,7 +356,6 @@ class InnerRoundStepQarma(ProbabilityStep):
 
         # sbox backward round
         overall_prob *= self.SBOXProbability(self.statesize, self.permstateout, self.sboxstateout, self.ddt)
-
         if verbose:
             print "I", overall_prob, math.log(overall_prob, 2)
 
@@ -415,10 +414,10 @@ class FullroundInverseStepQarma(ProbabilityStep):
         # normalize sbox2 probs
         self.NormalizeStateProbs(self.statesize, self.sboxstate2)
 
+        overall_prob *= mixcolprob * sboxprob
         if verbose:
             print self.sboxstate.name, overall_prob, math.log(overall_prob, 2)
 
-        overall_prob *= mixcolprob * sboxprob
         return (overall_prob, sboxprob, mixcolprob)
 
 
