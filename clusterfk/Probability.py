@@ -127,8 +127,8 @@ class ProbabilityStep:
 
 
 class FullroundStepMantis(ProbabilityStep):
-    def __init__(self, round, staterow, statecol, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sboxDDT, P):
-        ProbabilityStep.__init__(self, staterow, statecol)
+    def __init__(self, round, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sboxDDT, P):
+        ProbabilityStep.__init__(self, permstate.staterow, permstate.statecol)
         self.round = round
         self.sboxstate = sboxstate
         self.sboxstate2 = sboxstate2
@@ -169,8 +169,8 @@ class FullroundStepMantis(ProbabilityStep):
 
 
 class InnerRoundStepMantis(ProbabilityStep):
-    def __init__(self, staterow, statecol, sboxstatein, mixcolstatein, mixcolstateout, sboxstateout, sboxDDT):
-        ProbabilityStep.__init__(self, staterow, statecol)
+    def __init__(self, sboxstatein, mixcolstatein, mixcolstateout, sboxstateout, sboxDDT):
+        ProbabilityStep.__init__(self, mixcolstatein.staterow, mixcolstatein.statecol)
         self.sboxstatein = sboxstatein
         self.sboxstateout = sboxstateout
         self.mixcolstatein = mixcolstatein
@@ -221,8 +221,8 @@ class InnerRoundStepMantis(ProbabilityStep):
 
 
 class FullroundInverseStepMantis(ProbabilityStep):
-    def __init__(self, round, staterow, statecol, sboxstate, mixcolstate, permstate, addstate, tweak, sboxstate2, sboxDDT, P):
-        ProbabilityStep.__init__(self, staterow, statecol)
+    def __init__(self, round, sboxstate, mixcolstate, permstate, addstate, tweak, sboxstate2, sboxDDT, P):
+        ProbabilityStep.__init__(self, mixcolstate.staterow, mixcolstate.statecol)
         self.round = round
         self.sboxstate = sboxstate
         self.sboxstate2 = sboxstate2
@@ -276,9 +276,9 @@ class FullroundInverseStepMantis(ProbabilityStep):
 
 
 class FullroundStepQarma(ProbabilityStep):
-    def __init__(self, round, staterow, statecol, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sboxDDT,
+    def __init__(self, round, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sboxDDT,
                  P, M):
-        ProbabilityStep.__init__(self, staterow, statecol)
+        ProbabilityStep.__init__(self, addstate.staterow, addstate.statecol)
         self.round = round
         self.sboxstate = sboxstate
         self.sboxstate2 = sboxstate2
@@ -319,8 +319,8 @@ class FullroundStepQarma(ProbabilityStep):
 
 
 class InnerRoundStepQarma(ProbabilityStep):
-    def __init__(self, staterow, statecol, sboxstatein, permstatein, mixcolstatein, mixcolstateout, permstateout, sboxstateout, sboxDDT, P, M):
-        ProbabilityStep.__init__(self, staterow, statecol)
+    def __init__(self, sboxstatein, permstatein, mixcolstatein, mixcolstateout, permstateout, sboxstateout, sboxDDT, P, M):
+        ProbabilityStep.__init__(self, permstatein.staterow, permstatein.statecol)
         self.sboxstatein = sboxstatein
         self.sboxstateout = sboxstateout
         self.permstatein = permstatein
@@ -355,9 +355,9 @@ class InnerRoundStepQarma(ProbabilityStep):
 
 
 class FullroundInverseStepQarma(ProbabilityStep):
-    def __init__(self, round, staterow, statecol, sboxstate, mixcolstate, permstate, addstate, tweak, sboxstate2, sboxDDT,
+    def __init__(self, round, sboxstate, mixcolstate, permstate, addstate, tweak, sboxstate2, sboxDDT,
                  P, M):
-        ProbabilityStep.__init__(self, staterow, statecol)
+        ProbabilityStep.__init__(self, mixcolstate.staterow, mixcolstate.statecol)
         self.round = round
         self.sboxstate = sboxstate
         self.sboxstate2 = sboxstate2

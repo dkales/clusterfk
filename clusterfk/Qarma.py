@@ -1,4 +1,3 @@
-# TODO change everything
 
 import Trail, UI, Propagation, Probability, Utils
 from Tkinter import Label, StringVar
@@ -8,6 +7,8 @@ from Utils import COLORS
 import re
 import math
 import itertools
+from copy import deepcopy
+import time
 
 STATE_ROW = 4
 STATE_COL = 4
@@ -46,7 +47,7 @@ class QarmaState(Trail.State):
         for row in range(STATE_ROW):
             for col in range(STATE_COL):
                 if newstate.at(row, col) != [0]:
-                    newstate.set(row, col, {i for i in range(1, 16)})
+                    newstate.set(row, col, {i for i in range(1, STATE_SIZE)})
 
 def getUndefinedState():
     return [[{i for i in range(STATE_SIZE)} for _ in range(STATE_COL)] for _ in range(STATE_ROW)]
@@ -60,14 +61,14 @@ class QarmaTrail(Trail.Trail):
         self.probabilities = []
         for i in range(self.rounds):
             self.probabilities.append(
-                Probability.FullroundStepQarma(i, STATE_ROW, STATE_COL,
+                Probability.FullroundStepQarma(i,
                                           self.states["S" + str(i)], self.states["A" + str(i + 1)],
                                           self.states["T" + str(i + 1)],
                                           self.states["P" + str(i + 1)], self.states["M" + str(i + 1)],
                                           self.states["S" + str(i + 1)], self.sboxDDT, P, M4_3))
 
         self.probabilities.append(
-            Probability.InnerRoundStepQarma(STATE_ROW, STATE_COL,
+            Probability.InnerRoundStepQarma(
                 self.states["S" + str(self.rounds)],
                 self.states["A" + str(self.rounds + 1)],
                 self.states["I" + str(self.rounds + 1)],
@@ -77,7 +78,7 @@ class QarmaTrail(Trail.Trail):
 
         for i in range(self.rounds + 2, (self.rounds + 1) * 2):
             self.probabilities.append(
-                Probability.FullroundInverseStepQarma(i, STATE_ROW, STATE_COL,
+                Probability.FullroundInverseStepQarma(i,
                                                  self.states["S" + str(i)], self.states["M" + str(i)],
                                                  self.states["P" + str(i)], self.states["A" + str(i)],
                                                  self.states["T" + str((self.rounds + 1) * 2 - i)],
@@ -372,10 +373,71 @@ class QarmaTrail(Trail.Trail):
             if not isinstance(p, Propagation.MixColStep):
                 p.propagate()
 
-        # TODO: check for changes, do not just stupidly propagate N times
-        for _ in range(1, len(self.propagations)):
-            for p in self.propagations:
+        changed = False
+        start = 0
+        #############################################################################
+        # # make initial full round of propagation, as this is always needed
+        # s = time.time()
+        # for i, p in enumerate(self.propagations):
+        #     old_instate = deepcopy(p.instate.state)
+        #     old_outstate = deepcopy(p.outstate.state)
+        #     p.propagate()
+        #     in_changed = not p.instate.statesEqual(old_instate)
+        #     out_changed = not p.outstate.statesEqual(old_outstate)
+        #     if in_changed or out_changed:
+        #         changed = True
+        #         start = i
+        #         if in_changed and i > 0:
+        #             start = i - 1
+        #
+        # #TODO: still too time consuming?
+        # # for _ in range(1, len(self.propagations)):
+        # #    for p in self.propagations:
+        # #        p.propagate()
+        # new_start = 0
+        # while changed:
+        #     changed = False
+        #     for i in range(start, len(self.propagations), 1):
+        #         old_instate = deepcopy(self.propagations[i].instate.state)
+        #         old_outstate = deepcopy(self.propagations[i].outstate.state)
+        #         self.propagations[i].propagate()
+        #         in_changed = not self.propagations[i].instate.statesEqual(old_instate)
+        #         out_changed = not self.propagations[i].outstate.statesEqual(old_outstate)
+        #         if in_changed or out_changed:
+        #             changed = True
+        #             new_start = i
+        #             if in_changed and i > 0:
+        #                 new_start = i - 1
+        #
+        #     start = new_start
+        # e = time.time()
+        # print ("time_1: " + str(e - s))
+        #######################################################################
+        s = time.time()
+
+        # first round is needed anyway
+        for i, p in enumerate(self.propagations):
+            p.propagate()
+            if p.inchanged or p.outchanged:
+                changed = True
+                start = i
+                if p.inchanged and i > 0:
+                    start = i - 1
+
+        new_start = 0
+        while changed:
+            changed = False
+            for i, p in enumerate(self.propagations, start):
                 p.propagate()
+                if p.inchanged or p.outchanged:
+                    changed = True
+                    new_start = i
+                    if p.inchanged and i > 0:
+                        new_start = i - 1
+
+            start = new_start
+        e = time.time()
+        print ("time_2: " + str(e - s))
 
         self._propagateSameCells()
 

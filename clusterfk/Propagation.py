@@ -7,10 +7,18 @@ import itertools
 def intersect(cell1, cell2):
     return list(set(cell1) & set(cell2))
 
+def cellsdifferent(cell1, cell2):
+    return len(cell1 ^ cell2) is not 0
+
 class PropagationStep:
     def __init__(self, instate, outstate):
         self.instate = instate
         self.outstate = outstate
+        self.statesize = instate.statesize
+        self.staterow = instate.staterow
+        self.statecol = instate.statecol
+        self.inchanged = False
+        self.outchanged = False
 
     def propagate(self):
         raise NotImplementedError("Subclasses need to implement this")
@@ -22,11 +30,19 @@ class PermutationStep(PropagationStep):
         self.perm = perm
 
     def propagate(self):
-        for i in range(self.instate.statesize):
+        self.inchanged = False
+        self.outchanged = False
+
+        for i in range(self.statesize):
             intersection = self.instate.atI(self.perm[i]) & self.outstate.atI(i)
             if len(intersection) == 0:
                 print "Error in: ", self.instate.name
                 assert False
+
+            if cellsdifferent(self.instate.atI(self.perm[i]), intersection):
+                self.inchanged = True
+            if cellsdifferent(self.outstate.atI(i), intersection):
+                self.outchanged = True
 
             self.instate.setI(self.perm[i], intersection)
             self.outstate.setI(i, intersection)
@@ -41,22 +57,35 @@ class UpdateTweakeyStepQarma(PropagationStep):
         self._initLFSRLookupInv(lfsrlookup)
 
     def _initLFSRLookupInv(self, lookup):
-        self.lfsrlookupinv = [lookup.index(x) for x in range(self.instate.statesize)]
+        self.lfsrlookupinv = [lookup.index(x) for x in range(self.statesize)]
 
     def propagate(self):
-        for i in range(self.instate.statesize):
+        self.inchanged = False
+        self.outchanged = False
+
+        for i in range(self.statesize):
             if self.lfsrmatrix[i] is 1:
                 instate_i_shifted = set(map(lambda x: self.lfsrlookup[x], list(self.instate.atI(self.perm[i]))))
                 intersection = instate_i_shifted & self.outstate.atI(i)
-                self.instate.setI(self.perm[i], set(map(lambda x: self.lfsrlookupinv[x], intersection)))
+                in_intersection = set(map(lambda x: self.lfsrlookupinv[x], intersection))
+
+                if cellsdifferent(self.instate.atI(self.perm[i]), in_intersection):
+                    self.inchanged = True
+
+                self.instate.setI(self.perm[i], in_intersection)
             else:
                 intersection = self.instate.atI(self.perm[i]) & self.outstate.atI(i)
+
+                if cellsdifferent(self.instate.atI(self.perm[i]), intersection):
+                    self.inchanged = True
                 self.instate.setI(self.perm[i], intersection)
 
             if len(intersection) == 0:
                 print "Error in: ", self.instate.name
                 assert False
 
+            if cellsdifferent(self.outstate.atI(i), intersection):
+                self.outchanged = True
             self.outstate.setI(i, intersection)
 
 
@@ -66,15 +95,26 @@ class XORStep(PropagationStep):
         self.tweak = tweak
 
     def propagate(self):
-        for i in range(self.instate.statesize):
+        self.inchanged = False
+        self.outchanged = False
+
+        for i in range(self.statesize):
             t = self.tweak.atI(i)
             assert(len(t) == 1)
             t = Utils.first(t)
             in_new = {x^t for x in self.outstate.atI(i)}
             out_new = {x^t for x in self.instate.atI(i)}
 
-            self.instate.setI(i, self.instate.atI(i) & in_new)
-            self.outstate.setI(i, self.outstate.atI(i) & out_new)
+            instate_new = self.instate.atI(i) & in_new
+            outstate_new = self.outstate.atI(i) & out_new
+
+            if cellsdifferent(self.instate.atI(i), instate_new):
+                self.inchanged = True
+            if cellsdifferent(self.outstate.atI(i), outstate_new):
+                self.outchanged = True
+
+            self.instate.setI(i, instate_new)
+            self.outstate.setI(i, outstate_new)
 
             if len(self.instate.atI(i)) == 0 or len(self.outstate.atI(i)) == 0:
                 print "Error in: ", self.instate.name
@@ -89,16 +129,27 @@ class SBOXStep(PropagationStep):
     def _getDDTState(self, state):
         ret = set()
         for x in state:
-            ret.update([i for i in range(self.instate.statesize) if self.ddt[x][i] > 0])
+            ret.update([i for i in range(self.statesize) if self.ddt[x][i] > 0])
         return ret
 
     def propagate(self):
-        for i in range(self.instate.statesize):
+        self.inchanged = False
+        self.outchanged = False
+
+        for i in range(self.statesize):
             outposs = self._getDDTState(self.instate.atI(i))
             inposs = self._getDDTState(self.outstate.atI(i))
 
-            self.instate.setI(i, self.instate.atI(i) & inposs)
-            self.outstate.setI(i, self.outstate.atI(i) & outposs)
+            instate_new = self.instate.atI(i) & inposs
+            outstate_new = self.outstate.atI(i) & outposs
+
+            if cellsdifferent(self.instate.atI(i), instate_new):
+                self.inchanged = True
+            if cellsdifferent(self.outstate.atI(i), outstate_new):
+                self.outchanged = True
+
+            self.instate.setI(i, instate_new)
+            self.outstate.setI(i, outstate_new)
 
             if len(self.instate.atI(i)) == 0 or len(self.outstate.atI(i)) == 0:
                 print "Error in: ", self.instate.name
@@ -112,10 +163,12 @@ class MixColStep(PropagationStep):
 
     def propagate(self):
         global cellcounter
+        self.inchanged = False
+        self.outchanged = False
 
-        for col in range(self.instate.statecol):
-            incol = [self.instate.at(row, col) for row in range(self.instate.staterow)]
-            outcol = [self.outstate.at(row, col) for row in range(self.instate.staterow)]
+        for col in range(self.statecol):
+            incol = [self.instate.at(row, col) for row in range(self.staterow)]
+            outcol = [self.outstate.at(row, col) for row in range(self.staterow)]
 
             # skip undefined blocks for now, will probably be resolved on their own
             if incol.count({0}) + outcol.count({0}) == 8:
@@ -145,7 +198,7 @@ class MixColStep(PropagationStep):
                     if self.M is None:
                         incol_new.add((b^c^d, a^c^d, a^b^d, a^b^c))
                     else:
-                        outcol_new.add(
+                        incol_new.add(
                             (Utils.rotl(b, self.M[0][1]) ^ Utils.rotl(c, self.M[0][2]) ^ Utils.rotl(d, self.M[0][3]),
                              Utils.rotl(a, self.M[1][0]) ^ Utils.rotl(c, self.M[1][2]) ^ Utils.rotl(d, self.M[1][3]),
                              Utils.rotl(a, self.M[2][0]) ^ Utils.rotl(b, self.M[2][1]) ^ Utils.rotl(d, self.M[2][3]),
@@ -153,12 +206,22 @@ class MixColStep(PropagationStep):
 
                 newinstate = incol_old & incol_new
                 newoutstate = outcol_old & outcol_new
-                for row in range(self.instate.staterow):
+                for row in range(self.staterow):
                     ni = set()
                     no = set()
                     for x in newinstate:
                         ni.add(x[row])
                     for x in newoutstate:
                         no.add(x[row])
+
+                    if cellsdifferent(self.instate.at(row, col), ni):
+                        self.inchanged = True
+                    if cellsdifferent(self.outstate.at(row, col), no):
+                        self.outchanged = True
+
                     self.instate.set(row, col, ni)
                     self.outstate.set(row, col, no)
+
+                    if len(self.instate.at(row, col)) == 0 or len(self.outstate.at(row, col)) == 0:
+                        print "Error in: ", self.instate.name
+                        assert False
