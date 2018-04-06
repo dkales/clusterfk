@@ -373,71 +373,21 @@ class QarmaTrail(Trail.Trail):
             if not isinstance(p, Propagation.MixColStep):
                 p.propagate()
 
-        changed = False
+        changed = True
         start = 0
-        #############################################################################
-        # # make initial full round of propagation, as this is always needed
-        # s = time.time()
-        # for i, p in enumerate(self.propagations):
-        #     old_instate = deepcopy(p.instate.state)
-        #     old_outstate = deepcopy(p.outstate.state)
-        #     p.propagate()
-        #     in_changed = not p.instate.statesEqual(old_instate)
-        #     out_changed = not p.outstate.statesEqual(old_outstate)
-        #     if in_changed or out_changed:
-        #         changed = True
-        #         start = i
-        #         if in_changed and i > 0:
-        #             start = i - 1
-        #
-        # #TODO: still too time consuming?
-        # # for _ in range(1, len(self.propagations)):
-        # #    for p in self.propagations:
-        # #        p.propagate()
-        # new_start = 0
-        # while changed:
-        #     changed = False
-        #     for i in range(start, len(self.propagations), 1):
-        #         old_instate = deepcopy(self.propagations[i].instate.state)
-        #         old_outstate = deepcopy(self.propagations[i].outstate.state)
-        #         self.propagations[i].propagate()
-        #         in_changed = not self.propagations[i].instate.statesEqual(old_instate)
-        #         out_changed = not self.propagations[i].outstate.statesEqual(old_outstate)
-        #         if in_changed or out_changed:
-        #             changed = True
-        #             new_start = i
-        #             if in_changed and i > 0:
-        #                 new_start = i - 1
-        #
-        #     start = new_start
-        # e = time.time()
-        # print ("time_1: " + str(e - s))
-        #######################################################################
-        s = time.time()
-
-        # first round is needed anyway
-        for i, p in enumerate(self.propagations):
-            p.propagate()
-            if p.inchanged or p.outchanged:
-                changed = True
-                start = i
-                if p.inchanged and i > 0:
-                    start = i - 1
-
-        new_start = 0
         while changed:
+            new_start = len(self.propagations) + 1
             changed = False
             for i, p in enumerate(self.propagations, start):
                 p.propagate()
                 if p.inchanged or p.outchanged:
                     changed = True
-                    new_start = i
-                    if p.inchanged and i > 0:
-                        new_start = i - 1
+                    if i < new_start:
+                        new_start = i
+                        if p.inchanged and i > 0:
+                            new_start = i - 1
 
             start = new_start
-        e = time.time()
-        print ("time_2: " + str(e - s))
 
         self._propagateSameCells()
 

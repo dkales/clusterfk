@@ -44,7 +44,8 @@ class ProbabilityStep:
                 sboxprob += float(sum([ddt[x][y] for y in outstate.atI(i)])) / sum(ddt[x])
                 for y in outstate.atI(i):
                     outstate.stateprobs[i][y] += instate.stateprobs[i][x] * float(ddt[x][y]) / sum(ddt[x])
-            #sboxprob /= len(self.instate.atI(i))
+
+            sboxprob /= len(instate.atI(i)) #normalize
             overall_prob *= sboxprob
 
             outstate.stateprobs[i] = [float(x) / sum(outstate.stateprobs[i]) for x in
@@ -333,7 +334,7 @@ class InnerRoundStepQarma(ProbabilityStep):
 
     def getProbability(self, verbose=False):
         overall_prob = 1.0
-
+        #TODO use sboxcolumns here instead! But only in QARMA; leave Mantis as it is
         # sbox forward round:
         overall_prob *= self.SBOXProbability(self.statesize, self.sboxstatein, self.permstatein, self.ddt)
 

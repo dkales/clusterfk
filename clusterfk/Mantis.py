@@ -377,53 +377,8 @@ class MantisTrail(Trail.Trail):
             if not isinstance(p, Propagation.MixColStep):
                 p.propagate()
 
-        # s = time.time()
-        # # TODO: DO not just prograte N times
-        # for _ in range(1, len(self.propagations)):
-        #     for p in self.propagations:
-        #         p.propagate()
-        # e = time.time()
-        # print ("time_0: " + str(e - s))
-
-
         changed = True
         start = 0
-#############################################################################
-        # # make initial full round of propagation, as this is always needed
-        # s = time.time()
-        # for i, p in enumerate(self.propagations):
-        #     old_instate = deepcopy(p.instate.state)
-        #     old_outstate = deepcopy(p.outstate.state)
-        #     p.propagate()
-        #     in_changed = not p.instate.statesEqual(old_instate)
-        #     out_changed = not p.outstate.statesEqual(old_outstate)
-        #     if in_changed or out_changed:
-        #         changed = True
-        #         start = i
-        #         if in_changed and i > 0:
-        #             start = i - 1
-        #
-        # new_start = 0
-        # while changed:
-        #     changed = False
-        #     for i in range(start, len(self.propagations), 1):
-        #         old_instate = deepcopy(self.propagations[i].instate.state)
-        #         old_outstate = deepcopy(self.propagations[i].outstate.state)
-        #         self.propagations[i].propagate()
-        #         in_changed = not self.propagations[i].instate.statesEqual(old_instate)
-        #         out_changed = not self.propagations[i].outstate.statesEqual(old_outstate)
-        #         if in_changed or out_changed:
-        #             changed = True
-        #             new_start = i
-        #             if in_changed and i > 0:
-        #                 new_start = i - 1
-        #
-        #     start = new_start
-        # e = time.time()
-        # print ("time_1: " + str(e - s))
-#######################################################################
-        s = time.time()
-        #changed = False
         while changed:
             new_start = len(self.propagations) + 1
             changed = False
@@ -437,9 +392,7 @@ class MantisTrail(Trail.Trail):
                             new_start = i - 1
 
             start = new_start
-        e = time.time()
-        print ("time_2: " + str(e - s))
-###########################################################################
+
         self._propagateSameCells()
 
     
