@@ -11,7 +11,7 @@ class State:
         self.statesize = staterow * statecol
         self.state = state
         self.stateprobs = [[0.0]*self.statesize for _ in range(self.statesize)]
-        self.statenumber = [0 for _ in range(self.statesize)]
+        self.statenumbers = [0 for _ in range(self.statesize)]
         self.__iterindex = 0
         self.columnprobs = None
 

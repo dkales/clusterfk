@@ -341,6 +341,17 @@ class MantisTrail(Trail.Trail):
                 self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
             else:
                 self.colorlist[diff] = COLORS[colorname]
+
+        # for familarity, guarantee that 0-f is grey
+        diff, colorname = frozenset(
+            [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f]), "grey"
+        if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
+            if COLORS[colorname] in self.colorlist.values():
+                old_red = self.colorlist.keys()[self.colorlist.values().index(COLORS[colorname])]
+                self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
+            else:
+                self.colorlist[diff] = COLORS[colorname]
+
         #for familarity, guarantee that a,f is yellow
         diff,colorname = frozenset([0xa,0xf]), "yellow"
         if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
@@ -366,7 +377,16 @@ class MantisTrail(Trail.Trail):
             if not isinstance(p, Propagation.MixColStep):
                 p.propagate()
 
-        changed = False
+        # s = time.time()
+        # # TODO: DO not just prograte N times
+        # for _ in range(1, len(self.propagations)):
+        #     for p in self.propagations:
+        #         p.propagate()
+        # e = time.time()
+        # print ("time_0: " + str(e - s))
+
+
+        changed = True
         start = 0
 #############################################################################
         # # make initial full round of propagation, as this is always needed
@@ -383,10 +403,6 @@ class MantisTrail(Trail.Trail):
         #         if in_changed and i > 0:
         #             start = i - 1
         #
-        # #TODO: still too time consuming?
-        # # for _ in range(1, len(self.propagations)):
-        # #    for p in self.propagations:
-        # #        p.propagate()
         # new_start = 0
         # while changed:
         #     changed = False
@@ -407,26 +423,18 @@ class MantisTrail(Trail.Trail):
         # print ("time_1: " + str(e - s))
 #######################################################################
         s = time.time()
-
-        #first round is needed anyway
-        for i, p in enumerate(self.propagations):
-            p.propagate()
-            if p.inchanged or p.outchanged:
-                changed = True
-                start = i
-                if p.inchanged and i > 0:
-                    start = i - 1
-
-        new_start = 0
+        #changed = False
         while changed:
+            new_start = len(self.propagations) + 1
             changed = False
             for i, p in enumerate(self.propagations, start):
                 p.propagate()
                 if p.inchanged or p.outchanged:
                     changed = True
-                    new_start = i
-                    if p.inchanged and i > 0:
-                        new_start = i - 1
+                    if i < new_start:
+                        new_start = i
+                        if p.inchanged and i > 0:
+                            new_start = i - 1
 
             start = new_start
         e = time.time()

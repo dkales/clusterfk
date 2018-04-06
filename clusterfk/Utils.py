@@ -5,18 +5,20 @@ COLORS = {
 "yellow":   "#b58900",
 "orange":   "#cb4b16",
 "red":      "#dc322f",
-"darkred":  "#800000",
+#"darkred":  "#800000",
 "magenta":  "#d33682",
 "violet":   "#6c71c4",
 "blue":     "#268bd2",
 "cyan":     "#2aa198",
-"mint":     "#8df796",
+#"mint":     "#8df796",
 "palegreen": "#00ff00",
 "green":    "#859900",
 "grey":     "#cccccc",
 "black":    "#000000",
+#"grey1":    "#333333",
 "grey2":    "#666666",
 "grey3":    "#999999",
+#"grey4":    "#1f1f1f",
 
 }
 

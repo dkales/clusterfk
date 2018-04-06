@@ -37,6 +37,7 @@ class PermutationStep(PropagationStep):
             intersection = self.instate.atI(self.perm[i]) & self.outstate.atI(i)
             if len(intersection) == 0:
                 print "Error in: ", self.instate.name
+                #intersection = {10}
                 assert False
 
             if cellsdifferent(self.instate.atI(self.perm[i]), intersection):
@@ -153,6 +154,8 @@ class SBOXStep(PropagationStep):
 
             if len(self.instate.atI(i)) == 0 or len(self.outstate.atI(i)) == 0:
                 print "Error in: ", self.instate.name
+                #self.instate.setI(i, {0})
+                #self.outstate.setI(i, {0})
                 assert False
 
 
