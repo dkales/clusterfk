@@ -1,3 +1,6 @@
+from copy import deepcopy
+import time
+
 import Trail, UI, Propagation, Probability, Utils
 from Tkinter import Label,StringVar
 from Utils import COLORS
@@ -22,23 +25,7 @@ class MantisState(Trail.State):
     A representation of the 4x4 state of MANTIS
     """
     def __init__(self, name, state):
-        self.state = state
-        self.stateprobs = [[0.0]*16 for _ in range(16)]
-        self.statenumbers = [0 for _ in range(16)]
-        self.name = name
-        self.__iterindex = 0
-        self.columnprobs = None
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        if self.__iterindex >= 16:
-            self.__iterindex = 0
-            raise StopIteration
-        else:
-            self.__iterindex += 1
-            return self.atI(self.__iterindex-1)
+        Trail.State.__init__(self, STATE_ROW, STATE_COL, name, state)
 
     def __repr__(self):
         return """
@@ -48,31 +35,12 @@ class MantisState(Trail.State):
     {}{}{}{}
     {}{}{}{}""".strip().format(self.name, *[x for y in self.state for x in y])
 
-    def at(self, row, col):
-        return self.state[row][col]
-    def atI(self, index):
-        return self.state[index//STATE_ROW][index%STATE_COL]
-
-    def getRowColDict(self):
-        return { (row,col) : list(self.at(row,col)) for row in range(STATE_ROW) for col in range(STATE_COL)}
-
-    def set(self, row, col, state):
-        self.state[row][col] = state
-    def setI(self, index, state):
-        self.state[index//STATE_ROW][index%STATE_COL] = state
-
     def getActiveOnlyState(self):
         newstate = MantisState(self.name, getUndefinedState())
         for row in range(STATE_ROW):
             for col in range(STATE_COL):
                 if newstate.at(row, col) != [0]:
-                    newstate.set(row, col, {i for i in range(1,16)})
-
-    def makeActiveOnly(self):
-        for row in range(4):
-            for col in range(4):
-                if self.at(row, col) != {0}:
-                    self.set(row, col, {i for i in range(0,16)})
+                    newstate.set(row, col, {i for i in range(1,STATE_SIZE)})
 
 
 def getUndefinedState():
@@ -81,21 +49,7 @@ def getUndefinedState():
 
 class MantisTrail(Trail.Trail):
     def __init__(self, rounds, filename):
-        self.rounds = rounds
-        self.states = {}
-        self.sboxDDT = Utils.initDDT(SBOX)
-
-        with open(filename, "r") as f:
-            content = f.readlines()
-
-        content = [x for x in content if x.strip() != ""]
-
-        for i in range(0, len(content), 4):
-            self._parseStateBlock(map(lambda x: x.strip(), content[i:i+4]))
-
-        self._addPropagation()
-        self._addProbability()
-
+        Trail.Trail.__init__(self, rounds, filename, STATE_ROW, STATE_COL, SBOX)
 
     def _addProbability(self):
         self.probabilities = []
@@ -141,68 +95,67 @@ class MantisTrail(Trail.Trail):
         for i in range(self.rounds+1):
             if i == 0:
                 self.propagations.append(
-                        Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
+                        Propagation.XORStep(self.states["A"+str(i)],
                             self.states["S"+str(i)], self.states["T"+str(i)]))
                 self.propagations.append(
-                        Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
+                        Propagation.SBOXStep(self.states["S"+str(i)],
                             self.states["A"+str(i+1)], self.sboxDDT))
             else:
                 self.propagations.append(
-                        Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
+                        Propagation.XORStep(self.states["A"+str(i)],
                             self.states["P"+str(i)], self.states["T"+str(i)]))
                 self.propagations.append(
-                        Propagation.PermutationStep(STATE_SIZE, self.states["P"+str(i)],
+                        Propagation.PermutationStep(self.states["P"+str(i)],
                             self.states["M"+str(i)], P))
                 self.propagations.append(
-                        Propagation.MixColStepMantis(STATE_ROW, STATE_COL, self.states["M" + str(i)],
-                                                     self.states["S"+str(i)]))
+                        Propagation.MixColStep(self.states["M" + str(i)],
+                                               self.states["S"+str(i)]))
                 self.propagations.append(
-                        Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
+                        Propagation.SBOXStep(self.states["S"+str(i)],
                             self.states["A"+str(i+1)], self.sboxDDT))
 
         # inner round forwards
         self.propagations.append(
-                Propagation.MixColStepMantis(STATE_ROW, STATE_COL, self.states["A" + str(self.rounds + 1)],
-                                             self.states["a"+str(self.rounds+1)]))
+                Propagation.MixColStep(self.states["A" + str(self.rounds + 1)],
+                                       self.states["a"+str(self.rounds+1)]))
 
         # tweak
         for i in range(self.rounds):
-            self.propagations.append(Propagation.PermutationStep(STATE_SIZE,
-                self.states["T" + str(i)], self.states["T" + str(i+1)], H))
+            self.propagations.append(Propagation.PermutationStep(self.states["T" + str(i)], self.states["T" + str(i+1)], H))
 
         # backwards rounds
         for i in range((self.rounds+1)*2, self.rounds+1, -1):
             if i == ((self.rounds+1)*2):
                 self.propagations.append(
-                        Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
+                        Propagation.XORStep(self.states["A"+str(i)],
                             self.states["S"+str(i)],
                             self.states["T"+str((self.rounds+1)*2 -i)]))
                 self.propagations.append(
-                        Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
+                        Propagation.SBOXStep(self.states["S"+str(i)],
                             self.states["A"+str(i-1)], self.sboxDDT))
             else:
                 self.propagations.append(
-                        Propagation.XORStep(STATE_SIZE, self.states["A"+str(i)],
+                        Propagation.XORStep(self.states["A"+str(i)],
                             self.states["P"+str(i)],
                             self.states["T"+str((self.rounds+1)*2 -i)]))
                 self.propagations.append(
-                        Propagation.PermutationStep(STATE_SIZE, self.states["P"+str(i)],
+                        Propagation.PermutationStep(self.states["P"+str(i)],
                             self.states["M"+str(i)], P))
                 self.propagations.append(
-                        Propagation.MixColStepMantis(STATE_ROW, STATE_COL, self.states["M" + str(i)],
-                                                     self.states["S"+str(i)]))
+                        Propagation.MixColStep(self.states["M" + str(i)],
+                                               self.states["S"+str(i)]))
                 if i==self.rounds+2:
                     self.propagations.append(
-                            Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
+                            Propagation.SBOXStep(self.states["S"+str(i)],
                                 self.states["a"+str(i-1)], self.sboxDDT))
                 else:
                     self.propagations.append(
-                            Propagation.SBOXStep(STATE_SIZE, self.states["S"+str(i)],
+                            Propagation.SBOXStep(self.states["S"+str(i)],
                                 self.states["A"+str(i-1)], self.sboxDDT))
 
 
     def _parseStateBlock(self, stateblock):
-        assert len(stateblock) == 4
+        assert len(stateblock) == STATE_ROW
         curr_rounds = map(lambda x: int(x.split(" ")[0]), stateblock)
         assert all(x == curr_rounds[0] for x in curr_rounds)
         curr_round = curr_rounds[0]
@@ -407,23 +360,54 @@ class MantisTrail(Trail.Trail):
         for k,v in self.states.items():
             newtrail.states[k] = v.getActiveOnlyState()
 
-    def makeActiveOnly(self):
-        for name, state in self.states.items():
-            if "T" not in name:
-                state.makeActiveOnly()
-
     def propagate(self):
-        #do one propagation without mixcolumns, to speed them up later
+        # do one propagation without mixcolumns, to speed them up later
         for p in self.propagations:
-            if not isinstance(p, Propagation.MixColStepMantis):
+            if not isinstance(p, Propagation.MixColStep):
                 p.propagate()
 
-        #TODO: check for changes, do not just stupidly propagate N times
-        for _ in range(1, len(self.propagations)):
-            for p in self.propagations:
-                p.propagate()
 
+        # make initial full round of propagation, as this is always needed
+        changed = False
+        start = 0
+        for i, p in enumerate(self.propagations):
+            old_instate = deepcopy(p.instate.state)
+            old_outstate = deepcopy(p.outstate.state)
+            p.propagate()
+            in_changed = not p.instate.statesEqual(old_instate)
+            out_changed = not p.outstate.statesEqual(old_outstate)
+            if in_changed or out_changed:
+                changed = True
+                start = i
+                if in_changed and i > 0:
+                    start = i - 1
+
+        #TODO: still too time consuming?
+        # for _ in range(1, len(self.propagations)):
+        #    for p in self.propagations:
+        #        p.propagate()
+        s = time.time()
+        new_start = 0
+        while changed:
+            changed = False
+            for i in range(start, len(self.propagations), 1):
+                old_instate = deepcopy(self.propagations[i].instate.state)
+                old_outstate = deepcopy(self.propagations[i].outstate.state)
+                self.propagations[i].propagate()
+                in_changed = not self.propagations[i].instate.statesEqual(old_instate)
+                out_changed = not self.propagations[i].outstate.statesEqual(old_outstate)
+                if in_changed or out_changed:
+                    changed = True
+                    new_start = i
+                    if in_changed and i > 0:
+                        new_start = i - 1
+
+            start = new_start
+
+        e = time.time()
+        print (e - s)
         self._propagateSameCells()
+
     
     def _propagateSameCells(self):
         cellcounter = 1
@@ -467,16 +451,6 @@ class MantisTrail(Trail.Trail):
                     for row in outidx:
                         outstate.statenumbers[row*4+col] = cellcounter
                     cellcounter += 1
-        
-    
-    def getSetOfCurrentStates(self):
-        stateset = set()
-        for state in self.states.values():
-            for cell in state:
-                if cell != {0}:
-                    stateset.add(frozenset(cell))
-
-        return stateset
 
     def getProbability(self,verbose=False):
         totalprob = 1.0
@@ -515,6 +489,7 @@ class MantisTrail(Trail.Trail):
             print "N                  : 2**{}".format(math.log(N,2))
             print "N_phi              : 2**{}".format(math.log(N_phi,2))
         return totalprob
+
 
     def exportToLatex(self, filehandle):
         output = []

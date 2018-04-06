@@ -31,23 +31,7 @@ class QarmaState(Trail.State):
      """
 
     def __init__(self, name, state):
-        self.state = state
-        self.stateprobs = [[0.0] * 16 for _ in range(16)]
-        self.statenumbers = [0 for _ in range(16)]
-        self.name = name
-        self.__iterindex = 0
-        self.columnprobs = None
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        if self.__iterindex >= 16:
-            self.__iterindex = 0
-            raise StopIteration
-        else:
-            self.__iterindex += 1
-            return self.atI(self.__iterindex - 1)
+        Trail.State.__init__(self, STATE_ROW, STATE_COL, name, state)
 
     def __repr__(self):
         return """
@@ -57,21 +41,6 @@ class QarmaState(Trail.State):
         {}{}{}{}
         {}{}{}{}""".strip().format(self.name, *[x for y in self.state for x in y])
 
-    def at(self, row, col):
-        return self.state[row][col]
-
-    def atI(self, index):
-        return self.state[index // STATE_ROW][index % STATE_COL]
-
-    def getRowColDict(self):
-        return {(row, col): self.at(row, col) for row in range(STATE_ROW) for col in range(STATE_COL)}
-
-    def set(self, row, col, state):
-        self.state[row][col] = state
-
-    def setI(self, index, state):
-        self.state[index // STATE_ROW][index % STATE_COL] = state
-
     def getActiveOnlyState(self):
         newstate = QarmaState(self.name, getUndefinedState())
         for row in range(STATE_ROW):
@@ -79,33 +48,13 @@ class QarmaState(Trail.State):
                 if newstate.at(row, col) != [0]:
                     newstate.set(row, col, {i for i in range(1, 16)})
 
-    def makeActiveOnly(self):
-        for row in range(4):
-            for col in range(4):
-                if self.at(row, col) != {0}:
-                    self.set(row, col, {i for i in range(0, 16)})
-
-
 def getUndefinedState():
     return [[{i for i in range(STATE_SIZE)} for _ in range(STATE_COL)] for _ in range(STATE_ROW)]
 
 
 class QarmaTrail(Trail.Trail):
     def __init__(self, rounds, filename):
-        self.rounds = rounds
-        self.states = {}
-        self.sboxDDT = Utils.initDDT(SBOX)
-
-        with open(filename, "r") as f:
-            content = f.readlines()
-
-        content = [x for x in content if x.strip() != ""]
-
-        for i in range(0, len(content), 4):
-            self._parseStateBlock(map(lambda x: x.strip(), content[i:i + 4]))
-
-        self._addPropagation()
-        self._addProbability()
+        Trail.Trail.__init__(self, rounds, filename, STATE_ROW, STATE_COL, SBOX)
 
     def _addProbability(self):
         self.probabilities = []
@@ -139,39 +88,39 @@ class QarmaTrail(Trail.Trail):
         for i in range(self.rounds + 1):
             if i == 0:
                 self.propagations.append(
-                    Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
+                    Propagation.XORStep(self.states["A" + str(i)],
                                         self.states["S" + str(i)], self.states["T" + str(i)]))
                 self.propagations.append(
-                    Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
+                    Propagation.SBOXStep(self.states["S" + str(i)],
                                          self.states["A" + str(i + 1)], self.sboxDDT))
             else:
                 self.propagations.append(
-                    Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
+                    Propagation.XORStep(self.states["A" + str(i)],
                                         self.states["P" + str(i)], self.states["T" + str(i)]))
                 self.propagations.append(
-                    Propagation.PermutationStep(STATE_SIZE, self.states["P" + str(i)],
+                    Propagation.PermutationStep(self.states["P" + str(i)],
                                                 self.states["M" + str(i)], P))
                 self.propagations.append(
-                    Propagation.MixColStepQarma(STATE_ROW, STATE_COL, self.states["M" + str(i)],
-                                                 self.states["S" + str(i)], M4_3))
+                    Propagation.MixColStep(self.states["M" + str(i)],
+                                           self.states["S" + str(i)], M4_3))
                 self.propagations.append(
-                    Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
+                    Propagation.SBOXStep(self.states["S" + str(i)],
                                          self.states["A" + str(i + 1)], self.sboxDDT))
 
         # inner round
         self.propagations.append(
-            Propagation.PermutationStep(STATE_SIZE, self.states["A" + str(self.rounds + 1)],
+            Propagation.PermutationStep(self.states["A" + str(self.rounds + 1)],
                                         self.states["I" + str(self.rounds + 1)], P))
         self.propagations.append(
-            Propagation.MixColStepQarma(STATE_ROW, STATE_COL, self.states["I" + str(self.rounds + 1)],
-                                        self.states["I" + str(self.rounds + 1) + "_i"], M4_3))
+            Propagation.MixColStep(self.states["I" + str(self.rounds + 1)],
+                                   self.states["I" + str(self.rounds + 1) + "_i"], M4_3))
         self.propagations.append(
-            Propagation.PermutationStep(STATE_SIZE, self.states["I" + str(self.rounds + 1) + "_i"],
+            Propagation.PermutationStep(self.states["I" + str(self.rounds + 1) + "_i"],
                                         self.states["A" + str(self.rounds + 1) + "_i"], P))
 
         # tweak
         for i in range(self.rounds):
-            self.propagations.append(Propagation.UpdateTweakeyStepQarma(STATE_SIZE,
+            self.propagations.append(Propagation.UpdateTweakeyStepQarma(
                                                                  self.states["T" + str(i)],
                                                                  self.states["T" + str(i + 1)],
                                                                  H, LFSR_COMPUTATION_MATRIX, LFSR_LOOKUP))
@@ -180,30 +129,30 @@ class QarmaTrail(Trail.Trail):
         for i in range((self.rounds + 1) * 2, self.rounds + 1, -1):
             if i == ((self.rounds + 1) * 2):
                 self.propagations.append(
-                    Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
+                    Propagation.XORStep(self.states["A" + str(i)],
                                         self.states["S" + str(i)],
                                         self.states["T" + str((self.rounds + 1) * 2 - i)]))
                 self.propagations.append(
-                    Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
+                    Propagation.SBOXStep(self.states["S" + str(i)],
                                          self.states["A" + str(i - 1)], self.sboxDDT))
             else:
                 self.propagations.append(
-                    Propagation.XORStep(STATE_SIZE, self.states["A" + str(i)],
+                    Propagation.XORStep(self.states["A" + str(i)],
                                         self.states["P" + str(i)],
                                         self.states["T" + str((self.rounds + 1) * 2 - i)]))
                 self.propagations.append(
-                    Propagation.PermutationStep(STATE_SIZE, self.states["P" + str(i)],
+                    Propagation.PermutationStep(self.states["P" + str(i)],
                                                 self.states["M" + str(i)], P))
                 self.propagations.append(
-                    Propagation.MixColStepQarma(STATE_ROW, STATE_COL, self.states["M" + str(i)],
-                                                 self.states["S" + str(i)], M4_3))
+                    Propagation.MixColStep(self.states["M" + str(i)],
+                                           self.states["S" + str(i)], M4_3))
                 if i == self.rounds + 2:
                     self.propagations.append(
-                        Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
+                        Propagation.SBOXStep(self.states["S" + str(i)],
                                              self.states["I" + str(i - 1) + "_i"], self.sboxDDT))
                 else:
                     self.propagations.append(
-                        Propagation.SBOXStep(STATE_SIZE, self.states["S" + str(i)],
+                        Propagation.SBOXStep(self.states["S" + str(i)],
                                              self.states["A" + str(i - 1)], self.sboxDDT))
 
     def _parseStateBlock(self, stateblock):
@@ -417,15 +366,10 @@ class QarmaTrail(Trail.Trail):
         for k, v in self.states.items():
             newtrail.states[k] = v.getActiveOnlyState()
 
-    def makeActiveOnly(self):
-        for name, state in self.states.items():
-            if "T" not in name:
-                state.makeActiveOnly()
-
     def propagate(self):
         # do one propagation without mixcolumns, to speed them up later
         for p in self.propagations:
-            if not isinstance(p, Propagation.MixColStepQarma):
+            if not isinstance(p, Propagation.MixColStep):
                 p.propagate()
 
         # TODO: check for changes, do not just stupidly propagate N times
@@ -480,15 +424,6 @@ class QarmaTrail(Trail.Trail):
                     cellcounter += 1
         '''
 
-    def getSetOfCurrentStates(self):
-        stateset = set()
-        for state in self.states.values():
-            for cell in state:
-                if cell != {0}:
-                    stateset.add(frozenset(cell))
-
-        return stateset
-
     def getProbability(self, verbose=False):
         totalprob = 1.0
 
@@ -528,6 +463,7 @@ class QarmaTrail(Trail.Trail):
             print "N_phi              : 2**{}".format(math.log(N_phi, 2))
         return totalprob
 
+    #TODO adapt and make dynamic
     def exportToLatex(self, filehandle):
         output = []
         output.append(r"""

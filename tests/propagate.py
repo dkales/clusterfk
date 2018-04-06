@@ -22,7 +22,7 @@ P2= Mantis.MantisState("P", Mantis.getUndefinedState())
 props = []
 props.append(Propagation.XORStep(P, A, T))
 props.append(Propagation.SBOXStep(A, S, Mantis.SBOX))
-props.append(Propagation.MixColStepMantis(S, M))
+props.append(Propagation.MixColStep(S, M))
 props.append(Propagation.PermutationStep(M, P2, inverse=True))
 
 for prop in props:
