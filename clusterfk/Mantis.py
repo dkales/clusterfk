@@ -69,7 +69,7 @@ class MantisTrail(Trail.Trail):
 
         for i in range(self.rounds+2, (self.rounds+1)*2):
             self.probabilities.append(
-                    Probability.FullroundInverseStepMantis(i,
+                    Probability.FullroundInverseStepMantisAlternative(i,
                                                            self.states["S"+str(i)], self.states["M"+str(i)],
                                                            self.states["P"+str(i)], self.states["A"+str(i)],
                                                            self.states["T"+str((self.rounds+1)*2 - i)],

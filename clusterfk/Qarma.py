@@ -330,8 +330,13 @@ class QarmaTrail(Trail.Trail):
 
     def updateColorList(self):
         stateset = self.getSetOfCurrentStates()
-        assert len(stateset) <= len(COLORS)
-        self.colorlist = {state: color for state, color in zip(stateset, COLORS.values())}
+        # assert len(stateset) <= len(COLORS)
+        colors = COLORS.values()
+        if len(stateset) > len(COLORS):
+            colors = colors + ["#999999"]*(len(stateset)- len(COLORS.values()))
+
+            
+        self.colorlist = {state: color for state, color in zip(stateset, colors)}
 
         # for familarity, guarantee that 0xa is red
         diff, colorname = frozenset([0xa]), "red"

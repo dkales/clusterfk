@@ -14,6 +14,7 @@ class State:
         self.statenumbers = [0 for _ in range(self.statesize)]
         self.__iterindex = 0
         self.columnprobs = None
+        self.fullstateprobs = None
 
     def __iter__(self):
         return self
