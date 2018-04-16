@@ -462,6 +462,7 @@ class FullroundInverseStepMantisAlternative(ProbabilityStep):
             self.mixcolstate.fullstateprobs[x] = self.mixcolstate.fullstateprobs[x] / mixcolprob
 
         #PERM New 
+        del self.sboxstate.fullstateprobs
         self.permstate.fullstateprobs = defaultdict(float)
         for state, prob in self.mixcolstate.fullstateprobs.items():
             newstate = [0]*16
@@ -472,6 +473,7 @@ class FullroundInverseStepMantisAlternative(ProbabilityStep):
             self.permstate.fullstateprobs[newstate] += prob
 
         #ADDKEY New 
+        del self.mixcolstate.fullstateprobs
         self.addstate.fullstateprobs = defaultdict(float)
         for state, prob in self.permstate.fullstateprobs.items():
             newstate = [0]*16
@@ -483,6 +485,7 @@ class FullroundInverseStepMantisAlternative(ProbabilityStep):
         
         #print "-----"
         #SBOX New 
+        del self.permstate.fullstateprobs
         self.sboxstate2.fullstateprobs = defaultdict(float)
         for state, prob in self.addstate.fullstateprobs.items():
             #print state, prob
@@ -505,6 +508,7 @@ class FullroundInverseStepMantisAlternative(ProbabilityStep):
         
         #print "#####"
         # normalize mixcolstate.fullstateprobs
+        del self.addstate.fullstateprobs
         sboxprob = sum(self.sboxstate2.fullstateprobs.values())
         for x in self.sboxstate2.fullstateprobs:
             self.sboxstate2.fullstateprobs[x] = self.sboxstate2.fullstateprobs[x] / sboxprob
