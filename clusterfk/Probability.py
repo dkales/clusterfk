@@ -182,40 +182,41 @@ class InnerRoundStepMantis(ProbabilityStep):
     def getProbability(self, verbose=False):
         overall_prob = 1.0
 
+        overall_prob = 2**-4
         # sbox forward round:
-        overall_prob *= self.SBOXProbability(self.statesize, self.sboxstatein, self.mixcolstatein, self.ddt)
+        # overall_prob *= self.SBOXProbability(self.statesize, self.sboxstatein, self.mixcolstatein, self.ddt)
 
-        # mixcol Step
-        for col in range(4):
-            columnin = [set(self.sboxstatein.at(row, col)) for row in range(self.staterow)]
-            columnout = [set(self.sboxstateout.at(row, col)) for row in range(self.staterow)]
-            mcolumnin = [set(self.mixcolstatein.at(row, col)) for row in range(self.staterow)]
-            mcolumnout = [set(self.mixcolstateout.at(row, col)) for row in range(self.staterow)]
-            if columnin.count(set([0x0])) == 4 and columnout.count(set([0x0])) == 4:
-                continue
+        # # mixcol Step
+        # for col in range(4):
+            # columnin = [set(self.sboxstatein.at(row, col)) for row in range(self.staterow)]
+            # columnout = [set(self.sboxstateout.at(row, col)) for row in range(self.staterow)]
+            # mcolumnin = [set(self.mixcolstatein.at(row, col)) for row in range(self.staterow)]
+            # mcolumnout = [set(self.mixcolstateout.at(row, col)) for row in range(self.staterow)]
+            # if columnin.count(set([0x0])) == 4 and columnout.count(set([0x0])) == 4:
+                # continue
 
-            if columnin.count(set([0xa])) == 2 and columnin.count(set([0x0])) == 2 and columnout.count(
-                    set([0xa])) == 2 and columnout.count(set([0x0])) == 2:
-                if mcolumnin.count(set([0xa])) == 2 and mcolumnin.count(set([0x0])) == 2 and mcolumnout.count(
-                        set([0xa])) == 2 and mcolumnout.count(set([0x0])) == 2:
-                    overall_prob *= 1.0  # overall 2**-8
-                    continue
-                elif mcolumnin.count(set([0xa, 0x5, 0xd, 0xf])) == 2 and mcolumnin.count(
-                        set([0x0])) == 2 and mcolumnout.count(set([0xa, 0x5, 0xd, 0xf])) == 2 and mcolumnout.count(
-                        set([0x0])) == 2:
-                    overall_prob *= 1.0  # overall 2**-4
-                    continue
+            # if columnin.count(set([0xa])) == 2 and columnin.count(set([0x0])) == 2 and columnout.count(
+                    # set([0xa])) == 2 and columnout.count(set([0x0])) == 2:
+                # if mcolumnin.count(set([0xa])) == 2 and mcolumnin.count(set([0x0])) == 2 and mcolumnout.count(
+                        # set([0xa])) == 2 and mcolumnout.count(set([0x0])) == 2:
+                    # overall_prob *= 1.0  # overall 2**-8
+                    # continue
+                # elif mcolumnin.count(set([0xa, 0x5, 0xd, 0xf])) == 2 and mcolumnin.count(
+                        # set([0x0])) == 2 and mcolumnout.count(set([0xa, 0x5, 0xd, 0xf])) == 2 and mcolumnout.count(
+                        # set([0x0])) == 2:
+                    # overall_prob *= 1.0  # overall 2**-4
+                    # continue
 
-            raise NotImplementedError("Superbox case not specified")
+            # raise NotImplementedError("Superbox case not specified")
 
-        # temporary hack for mixcol, assume uniform distribution in inner step
-        for i in range(self.statesize):
-            self.mixcolstateout.stateprobs[i] = [
-                1.0 / len(self.mixcolstateout.atI(i)) if x in self.mixcolstateout.atI(i) else 0.0 for x in
-                range(self.statesize)]
+        # # temporary hack for mixcol, assume uniform distribution in inner step
+        # for i in range(self.statesize):
+            # self.mixcolstateout.stateprobs[i] = [
+                # 1.0 / len(self.mixcolstateout.atI(i)) if x in self.mixcolstateout.atI(i) else 0.0 for x in
+                # range(self.statesize)]
 
-        # sbox backward round
-        overall_prob *= self.SBOXProbability(self.statesize, self.mixcolstateout, self.sboxstateout, self.ddt)
+        # # sbox backward round
+        # overall_prob *= self.SBOXProbability(self.statesize, self.mixcolstateout, self.sboxstateout, self.ddt)
         if verbose:
             print "I", overall_prob, math.log(overall_prob, 2)
 
@@ -421,10 +422,111 @@ class FullroundInverseStepQarma(ProbabilityStep):
         return (overall_prob, sboxprob, mixcolprob)
 
 
+class FullroundStepMantisAlternative(ProbabilityStep):
+    def __init__(self, round, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sboxDDT,
+                 P):
+        ProbabilityStep.__init__(self, addstate.staterow, addstate.statecol)
+        self.round = round
+        self.sboxstate = sboxstate
+        self.sboxstate2 = sboxstate2
+        self.tweak = tweak
+        self.addstate = addstate
+        self.permstate = permstate
+        self.mixcolstate = mixcolstate
+        self.ddt = sboxDDT
+        self.P = P
+        self.DDTposs = [[y for y in range(16) if self.ddt[x][y] != 0] for x in range(16)]
+        #self.simpleSBOXstep = simpleSBOXstep
+
+    def getProbability(self, verbose=False):
+        overall_prob = 1.0
+
+        counter = 0
+        self.addstate.fullstateprobs = defaultdict(float)
+        for state, prob in self.sboxstate.fullstateprobs.items():
+            # print state, prob
+            # print counter
+            for newstate in itertools.product(self.DDTposs[state[0]],self.DDTposs[state[1]],self.DDTposs[state[2]],self.DDTposs[state[3]],
+                                              self.DDTposs[state[4]],self.DDTposs[state[5]],self.DDTposs[state[6]],self.DDTposs[state[7]],
+                                              self.DDTposs[state[8]],self.DDTposs[state[9]],self.DDTposs[state[10]],self.DDTposs[state[11]],
+                                              self.DDTposs[state[12]],self.DDTposs[state[13]],self.DDTposs[state[14]],self.DDTposs[state[15]]):
+                #print newstate
+                counter +=1
+                # if(counter % 100000 == 0):
+                #     print counter
+                ok = True
+                for idx, val in enumerate(newstate):
+                    if val not in self.addstate.atI(idx):
+                        ok = False
+                        break
+                if ok:
+                    newstate=tuple(newstate)
+                    tmpprobs = 1.0
+                    for i in range(16):
+                        tmpprobs *= float(self.ddt[state[i]][newstate[i]]) / 16
+                    self.addstate.fullstateprobs[newstate] += prob * tmpprobs 
+        
+        #print "#####"
+        # normalize addstate.fullstateprobs
+        sboxprob = sum(self.addstate.fullstateprobs.values())
+        for x in self.addstate.fullstateprobs:
+            self.addstate.fullstateprobs[x] = self.addstate.fullstateprobs[x] / sboxprob
+        # print sboxprob
+
+        #ADDKEY New 
+        self.permstate.fullstateprobs = defaultdict(float)
+        for state, prob in self.addstate.fullstateprobs.items():
+            newstate = [0]*16
+            for idx in range(16):
+                newstate[idx] = state[idx] ^ Utils.first(self.tweak.atI(idx))
+
+            newstate=tuple(newstate)
+            self.permstate.fullstateprobs[newstate] += prob
+        
+        #PERM New 
+        self.mixcolstate.fullstateprobs = defaultdict(float)
+        for state, prob in self.permstate.fullstateprobs.items():
+            newstate = [0]*16
+            for idx in range(16):
+                newstate[idx] = state[self.P[idx]] 
+
+            newstate=tuple(newstate)
+            self.mixcolstate.fullstateprobs[newstate] += prob
+
+        #print "-----"
+
+        #MIXCOL New 
+        self.sboxstate2.fullstateprobs = defaultdict(float)
+        for state, prob in self.mixcolstate.fullstateprobs.items():
+            # print state, prob
+            newstate = (state[4]^state[8]^state[12],state[5]^state[9]^state[13],state[6]^state[10]^state[14],state[7]^state[11]^state[15],
+                        state[0]^state[8]^state[12],state[1]^state[9]^state[13],state[2]^state[10]^state[14],state[3]^state[11]^state[15],
+                        state[0]^state[4]^state[12],state[1]^state[5]^state[13],state[2]^state[6]^state[14],state[3]^state[7]^state[15],
+                        state[0]^state[4]^state[8],state[1]^state[5]^state[9],state[2]^state[6]^state[10],state[3]^state[7]^state[11])
+            ok = True
+            for idx, val in enumerate(newstate):
+                if val not in self.sboxstate2.atI(idx):
+                    ok = False
+                    break
+            if ok:
+                self.sboxstate2.fullstateprobs[newstate] += prob
+
+        # normalize mixcolstate.fullstateprobs
+        mixcolprob = sum(self.sboxstate2.fullstateprobs.values())
+        for x in self.sboxstate2.fullstateprobs:
+            self.sboxstate2.fullstateprobs[x] = self.sboxstate2.fullstateprobs[x] / mixcolprob
+
+        # print mixcolprob
+        overall_prob *= mixcolprob * sboxprob
+        if verbose:
+            print self.sboxstate.name, overall_prob, math.log(overall_prob, 2)
+
+        return (overall_prob, sboxprob, mixcolprob)
+
 
 class FullroundInverseStepMantisAlternative(ProbabilityStep):
     def __init__(self, round, sboxstate, mixcolstate, permstate, addstate, tweak, sboxstate2, sboxDDT,
-                 P):
+                 P, simpleSBOXstep = False):
         ProbabilityStep.__init__(self, mixcolstate.staterow, mixcolstate.statecol)
         self.round = round
         self.sboxstate = sboxstate
@@ -436,6 +538,7 @@ class FullroundInverseStepMantisAlternative(ProbabilityStep):
         self.ddt = sboxDDT
         self.P = P
         self.DDTposs = [[y for y in range(16) if self.ddt[x][y] != 0] for x in range(16)]
+        self.simpleSBOXstep = simpleSBOXstep
 
     def getProbability(self, verbose=False):
         overall_prob = 1.0
@@ -462,7 +565,6 @@ class FullroundInverseStepMantisAlternative(ProbabilityStep):
             self.mixcolstate.fullstateprobs[x] = self.mixcolstate.fullstateprobs[x] / mixcolprob
 
         #PERM New 
-        del self.sboxstate.fullstateprobs
         self.permstate.fullstateprobs = defaultdict(float)
         for state, prob in self.mixcolstate.fullstateprobs.items():
             newstate = [0]*16
@@ -473,7 +575,6 @@ class FullroundInverseStepMantisAlternative(ProbabilityStep):
             self.permstate.fullstateprobs[newstate] += prob
 
         #ADDKEY New 
-        del self.mixcolstate.fullstateprobs
         self.addstate.fullstateprobs = defaultdict(float)
         for state, prob in self.permstate.fullstateprobs.items():
             newstate = [0]*16
@@ -485,33 +586,34 @@ class FullroundInverseStepMantisAlternative(ProbabilityStep):
         
         #print "-----"
         #SBOX New 
-        del self.permstate.fullstateprobs
-        self.sboxstate2.fullstateprobs = defaultdict(float)
-        for state, prob in self.addstate.fullstateprobs.items():
-            #print state, prob
-            for newstate in itertools.product(self.DDTposs[state[0]],self.DDTposs[state[1]],self.DDTposs[state[2]],self.DDTposs[state[3]],
-                                              self.DDTposs[state[4]],self.DDTposs[state[5]],self.DDTposs[state[6]],self.DDTposs[state[7]],
-                                              self.DDTposs[state[8]],self.DDTposs[state[9]],self.DDTposs[state[10]],self.DDTposs[state[11]],
-                                              self.DDTposs[state[12]],self.DDTposs[state[13]],self.DDTposs[state[14]],self.DDTposs[state[15]]):
-                #print newstate
-                ok = True
-                for idx, val in enumerate(newstate):
-                    if val not in self.sboxstate2.atI(idx):
-                        ok = False
-                        break
-                if ok:
-                    newstate=tuple(newstate)
-                    tmpprobs = 1.0
-                    for i in range(16):
-                        tmpprobs *= float(self.ddt[state[i]][newstate[i]]) / 16
-                    self.sboxstate2.fullstateprobs[newstate] += prob * tmpprobs 
-        
-        #print "#####"
-        # normalize mixcolstate.fullstateprobs
-        del self.addstate.fullstateprobs
-        sboxprob = sum(self.sboxstate2.fullstateprobs.values())
-        for x in self.sboxstate2.fullstateprobs:
-            self.sboxstate2.fullstateprobs[x] = self.sboxstate2.fullstateprobs[x] / sboxprob
+        if self.simpleSBOXstep:
+            sboxprob = 1.0
+        else:
+            self.sboxstate2.fullstateprobs = defaultdict(float)
+            for state, prob in self.addstate.fullstateprobs.items():
+                #print state, prob
+                for newstate in itertools.product(self.DDTposs[state[0]],self.DDTposs[state[1]],self.DDTposs[state[2]],self.DDTposs[state[3]],
+                                                  self.DDTposs[state[4]],self.DDTposs[state[5]],self.DDTposs[state[6]],self.DDTposs[state[7]],
+                                                  self.DDTposs[state[8]],self.DDTposs[state[9]],self.DDTposs[state[10]],self.DDTposs[state[11]],
+                                                  self.DDTposs[state[12]],self.DDTposs[state[13]],self.DDTposs[state[14]],self.DDTposs[state[15]]):
+                    #print newstate
+                    ok = True
+                    for idx, val in enumerate(newstate):
+                        if val not in self.sboxstate2.atI(idx):
+                            ok = False
+                            break
+                    if ok:
+                        newstate=tuple(newstate)
+                        tmpprobs = 1.0
+                        for i in range(16):
+                            tmpprobs *= float(self.ddt[state[i]][newstate[i]]) / 16
+                        self.sboxstate2.fullstateprobs[newstate] += prob * tmpprobs 
+            
+            #print "#####"
+            # normalize mixcolstate.fullstateprobs
+            sboxprob = sum(self.sboxstate2.fullstateprobs.values())
+            for x in self.sboxstate2.fullstateprobs:
+                self.sboxstate2.fullstateprobs[x] = self.sboxstate2.fullstateprobs[x] / sboxprob
 
         overall_prob *= mixcolprob * sboxprob
         if verbose:

@@ -55,7 +55,7 @@ class MantisTrail(Trail.Trail):
         self.probabilities = []
         for i in range(self.rounds):
             self.probabilities.append(
-                    Probability.FullroundStepMantis(i,
+                    Probability.FullroundStepMantisAlternative(i,
                                                     self.states["S"+str(i)], self.states["A"+str(i+1)],
                                                     self.states["T"+str(i+1)],
                                                     self.states["P"+str(i+1)], self.states["M"+str(i+1)], self.states["S"+str(i+1)], self.sboxDDT, P))
@@ -73,7 +73,7 @@ class MantisTrail(Trail.Trail):
                                                            self.states["S"+str(i)], self.states["M"+str(i)],
                                                            self.states["P"+str(i)], self.states["A"+str(i)],
                                                            self.states["T"+str((self.rounds+1)*2 - i)],
-                                                           self.states["S"+str(i+1)], self.sboxDDT, P))
+                                                           self.states["S"+str(i+1)], self.sboxDDT, P, i == (self.rounds+1)*2-1))
         # return
         # for i in range(self.rounds+1):
             # self.probabilities.append(
@@ -395,7 +395,7 @@ class MantisTrail(Trail.Trail):
 
         self._propagateSameCells()
 
-    
+
     def _propagateSameCells(self):
         cellcounter = 1
         for state in self.states.values():
@@ -457,6 +457,18 @@ class MantisTrail(Trail.Trail):
             for poss in self.states["S0"].atI(i):
                 self.states["S0"].stateprobs[i][poss] = 1.0/len(self.states["S0"].atI(i))
 
+        # set the probability of the first state to a uniform distribution (fullstate case)
+        self.states["S0"].fullstateprobs = {}
+        factor = 1.0
+        for i in range(16):
+            factor *= len(self.states["S0"].atI(i))
+        print "factor", factor
+
+        for newstate in itertools.product(self.states["S0"].atI(0),self.states["S0"].atI(1),self.states["S0"].atI(2),self.states["S0"].atI(3),
+                                          self.states["S0"].atI(4),self.states["S0"].atI(5),self.states["S0"].atI(6),self.states["S0"].atI(7),
+                                          self.states["S0"].atI(8),self.states["S0"].atI(9),self.states["S0"].atI(10),self.states["S0"].atI(11),
+                                          self.states["S0"].atI(12),self.states["S0"].atI(13),self.states["S0"].atI(14),self.states["S0"].atI(15)):
+            self.states["S0"].fullstateprobs[tuple(newstate)] = 1.0/factor
 
         for prob in self.probabilities:
             totalprob *= prob.getProbability(verbose=verbose)[0]
