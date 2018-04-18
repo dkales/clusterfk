@@ -58,7 +58,7 @@ class MantisTrail(Trail.Trail):
                     Probability.FullroundStepMantisAlternative(i,
                                                     self.states["S"+str(i)], self.states["A"+str(i+1)],
                                                     self.states["T"+str(i+1)],
-                                                    self.states["P"+str(i+1)], self.states["M"+str(i+1)], self.states["S"+str(i+1)], self.sboxDDT, P))
+                                                    self.states["P"+str(i+1)], self.states["M"+str(i+1)], self.states["S"+str(i+1)], self.sboxDDT, P, i == 0))
 
         self.probabilities.append(
                 Probability.InnerRoundStepMantis(

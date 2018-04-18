@@ -424,7 +424,7 @@ class FullroundInverseStepQarma(ProbabilityStep):
 
 class FullroundStepMantisAlternative(ProbabilityStep):
     def __init__(self, round, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sboxDDT,
-                 P):
+                 P, simpleSBOXstep):
         ProbabilityStep.__init__(self, addstate.staterow, addstate.statecol)
         self.round = round
         self.sboxstate = sboxstate
@@ -436,42 +436,55 @@ class FullroundStepMantisAlternative(ProbabilityStep):
         self.ddt = sboxDDT
         self.P = P
         self.DDTposs = [[y for y in range(16) if self.ddt[x][y] != 0] for x in range(16)]
-        #self.simpleSBOXstep = simpleSBOXstep
+        self.simpleSBOXstep = simpleSBOXstep
 
     def getProbability(self, verbose=False):
         overall_prob = 1.0
 
         counter = 0
         self.addstate.fullstateprobs = defaultdict(float)
-        for state, prob in self.sboxstate.fullstateprobs.items():
-            # print state, prob
-            # print counter
-            for newstate in itertools.product(self.DDTposs[state[0]],self.DDTposs[state[1]],self.DDTposs[state[2]],self.DDTposs[state[3]],
-                                              self.DDTposs[state[4]],self.DDTposs[state[5]],self.DDTposs[state[6]],self.DDTposs[state[7]],
-                                              self.DDTposs[state[8]],self.DDTposs[state[9]],self.DDTposs[state[10]],self.DDTposs[state[11]],
-                                              self.DDTposs[state[12]],self.DDTposs[state[13]],self.DDTposs[state[14]],self.DDTposs[state[15]]):
-                #print newstate
-                counter +=1
-                # if(counter % 100000 == 0):
-                #     print counter
-                ok = True
-                for idx, val in enumerate(newstate):
-                    if val not in self.addstate.atI(idx):
-                        ok = False
-                        break
-                if ok:
-                    newstate=tuple(newstate)
-                    tmpprobs = 1.0
-                    for i in range(16):
-                        tmpprobs *= float(self.ddt[state[i]][newstate[i]]) / 16
-                    self.addstate.fullstateprobs[newstate] += prob * tmpprobs 
-        
-        #print "#####"
-        # normalize addstate.fullstateprobs
-        sboxprob = sum(self.addstate.fullstateprobs.values())
-        for x in self.addstate.fullstateprobs:
-            self.addstate.fullstateprobs[x] = self.addstate.fullstateprobs[x] / sboxprob
-        # print sboxprob
+        if self.simpleSBOXstep:
+            sboxprob = self.SBOXProbability(self.statesize, self.sboxstate, self.addstate, self.ddt)
+            for newstate in itertools.product(self.addstate.atI(0),self.addstate.atI(1),self.addstate.atI(2),self.addstate.atI(3),
+                                          self.addstate.atI(4),self.addstate.atI(5),self.addstate.atI(6),self.addstate.atI(7),
+                                          self.addstate.atI(8),self.addstate.atI(9),self.addstate.atI(10),self.addstate.atI(11),
+                                          self.addstate.atI(12),self.addstate.atI(13),self.addstate.atI(14),self.addstate.atI(15)):
+
+                prob = 1.0
+                for i in range(16):
+                    prob *= self.addstate.stateprobs[i][newstate[i]]
+                self.addstate.fullstateprobs[tuple(newstate)] = prob
+
+        else:
+            for state, prob in self.sboxstate.fullstateprobs.items():
+                # print state, prob
+                # print counter
+                for newstate in itertools.product(self.DDTposs[state[0]],self.DDTposs[state[1]],self.DDTposs[state[2]],self.DDTposs[state[3]],
+                                                  self.DDTposs[state[4]],self.DDTposs[state[5]],self.DDTposs[state[6]],self.DDTposs[state[7]],
+                                                  self.DDTposs[state[8]],self.DDTposs[state[9]],self.DDTposs[state[10]],self.DDTposs[state[11]],
+                                                  self.DDTposs[state[12]],self.DDTposs[state[13]],self.DDTposs[state[14]],self.DDTposs[state[15]]):
+                    #print newstate
+                    counter +=1
+                    # if(counter % 100000 == 0):
+                    #     print counter
+                    ok = True
+                    for idx, val in enumerate(newstate):
+                        if val not in self.addstate.atI(idx):
+                            ok = False
+                            break
+                    if ok:
+                        newstate=tuple(newstate)
+                        tmpprobs = 1.0
+                        for i in range(16):
+                            tmpprobs *= float(self.ddt[state[i]][newstate[i]]) / 16
+                        self.addstate.fullstateprobs[newstate] += prob * tmpprobs
+
+            #print "#####"
+            # normalize addstate.fullstateprobs
+            sboxprob = sum(self.addstate.fullstateprobs.values())
+            for x in self.addstate.fullstateprobs:
+                self.addstate.fullstateprobs[x] = self.addstate.fullstateprobs[x] / sboxprob
+            # print sboxprob
 
         #ADDKEY New 
         self.permstate.fullstateprobs = defaultdict(float)
