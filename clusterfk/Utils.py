@@ -1,26 +1,77 @@
 import itertools
+from copy import deepcopy
 
-#TODO add more colors or make usage dynamic
-#solarized color scheme
+# TODO add more colors or make usage dynamic
+# solarized color scheme
 COLORS = {
-"yellow":   "#b58900",
-"orange":   "#cb4b16",
-"red":      "#dc322f",
-"darkred":  "#800000",
-"magenta":  "#d33682",
-"violet":   "#6c71c4",
-"blue":     "#268bd2",
-"cyan":     "#2aa198",
-"mint":     "#8df796",
-"palegreen": "#00ff00",
-"green":    "#859900",
-"grey":     "#cccccc",
-"black":    "#000000",
-"grey1":    "#333333",
-"grey2":    "#666666",
-"grey3":    "#999999",
-"grey4":    "#1f1f1f",
+    "yellow": "#b58900",
+    "orange": "#cb4b16",
+    "red": "#dc322f",
+    "darkred": "#800000",
+    "magenta": "#d33682",
+    "violet": "#6c71c4",
+    "blue": "#268bd2",
+    "cyan": "#2aa198",
+    "mint": "#8df796",
+    "palegreen": "#00ff00",
+    "green": "#859900",
+    "grey": "#cccccc",
+    "black": "#000000",
+    "grey1": "#333333",
+    "grey2": "#666666",
+    "grey3": "#999999",
+    "grey4": "#1f1f1f",
 
+}
+
+json_schema = {
+    "type": "object",
+    "properties": {
+        "cipher": {
+            "type": "string",
+            "enum": [
+                "Mantis",
+                "Qarma",
+                "Deoxys"
+            ]
+        },
+        "rounds": {
+            "type": "integer"
+        },
+        "states": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "state": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 15
+                                },
+                                "minItems": 1,
+                                "maxItems": 16,
+                            },
+                            "minItems": 4,
+                            "maxItems": 4,
+                        },
+                        "minItems": 4,
+                        "maxItems": 4,
+                    }
+                }
+            },
+            "uniqueItems": True
+        }
+    },
+    "required": ["cipher", "states"]
 }
 
 
@@ -32,20 +83,40 @@ def initDDT(sbox):
         ddt[in1 ^ in2][out1 ^ out2] += 1
     return ddt
 
+
 MASK_4 = 15
 MASK_8 = 255
+
 
 def first(set):
     return iter(set).next()
 
+
 def listtobool(list):
-    ret =  0
+    ret = 0
     for i in range(len(list)):
-        ret += (list[len(list) - 1 - i] * pow(2,i))
+        ret += (list[len(list) - 1 - i] * pow(2, i))
     return ret
 
-#bitwise (nibble) operations
-def rotl(num, i, size=4):
+
+# Galois Multiplication
+# taken from https://gist.github.com/raullenchai/2920069
+def galoisMult(a, b):
+    p = 0
+    hiBitSet = 0
+    for i in range(8):
+        if b & 1 == 1:
+            p ^= a
+        hiBitSet = a & 0x80
+        a <<= 1
+        if hiBitSet == 0x80:
+            a ^= 0x1b
+        b >>= 1
+    return p % 256
+
+
+# bitwise (nibble) operations
+def rotl_bitwise(num, i, size=4):
     if i == 0:
         return num
 
@@ -55,9 +126,10 @@ def rotl(num, i, size=4):
     elif size == 8:
         return ret & MASK_8
     else:
-        assert(False)
+        assert (False)
 
-def rotr(num, i, size=4):
+
+def rotr_bitwise(num, i, size=4):
     if i == 0:
         return num
 
@@ -67,4 +139,41 @@ def rotr(num, i, size=4):
     elif size == 8:
         return ret & MASK_8
     else:
-        assert(False)
+        assert (False)
+
+
+# rowwise (list) operations
+def rotl_list(lst, i, size=4):
+    if i is 0:
+        return lst
+
+    new_lst = rotl_list_by_one(lst, size)
+    for _ in range(i - 1):
+        new_lst = rotl_list_by_one(new_lst, size)
+    return new_lst
+
+
+def rotr_list(lst, i, size=4):
+    if i is 0:
+        return lst
+
+    new_lst = rotr_list_by_one(lst, size)
+    for _ in range(i - 1):
+        rotr_list_by_one(new_lst, size)
+    return new_lst
+
+
+def rotl_list_by_one(lst, size=4):
+    new_lst = [0 for _ in range(size)]
+    new_lst[size - 1] = deepcopy(lst[0])
+    for i in range(size - 1):
+        new_lst[i] = lst[i + 1]
+    return new_lst
+
+
+def rotr_list_by_one(lst, size=4):
+    new_lst = [0 for _ in range(size)]
+    new_lst[0] = deepcopy(new_lst[size - 1])
+    for i in range(size - 1, 1):
+        new_lst[i] = deepcopy(lst[i - 1])
+    return new_lst

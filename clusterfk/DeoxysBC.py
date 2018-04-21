@@ -6,30 +6,30 @@ from Utils import COLORS
 import re
 import math
 import itertools
+from copy import deepcopy
+import time
 
 STATE_ROW = 4
 STATE_COL = 4
 STATE_SIZE = STATE_ROW * STATE_COL
 
-SBOX = [0, 14, 2, 10, 9, 15, 8, 11, 6, 4, 3, 7, 13, 12, 1, 5]  # Sbox0
-SBOX_1 = [10, 13, 14, 6, 15, 7, 3, 5, 9, 8, 0, 12, 11, 1, 2, 4]
-SBOX_2 = [11, 6, 8, 15, 13, 0, 9, 14, 3, 7, 4, 5, 12, 2, 1, 10]
-P = (0, 11, 6, 13, 10, 1, 12, 7, 5, 14, 3, 8, 15, 4, 9, 2)
-P_I = (P.index(x) for x in range(16))
+SBOX = [0, 14, 2, 10, 9, 15, 8, 11, 6, 4, 3, 7, 13, 12, 1, 5]
 H = (6, 5, 14, 15, 0, 1, 2, 3, 7, 12, 13, 4, 8, 9, 10, 11)
 
 # helper
-LFSR_LOOKUP = (0, 8, 9, 1, 2, 10, 11, 3, 4, 12, 13, 5, 6, 14, 15, 7)
-LFSR_COMPUTATION_MATRIX = [1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]
-M4_3 = [[0, 1, 2, 1], [1, 0, 1, 2], [2, 1, 0, 1], [1, 2, 1, 0]]
+LFSR_LOOKUP = (0, 8, 9, 1, 2, 10, 11, 3, 4, 12, 13, 5, 6, 14, 15, 7)  #
+LFSR_COMPUTATION_MATRIX = [1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]  #
+M = [[2, 3, 1, 1], [1, 2, 3, 1], [1, 1, 2, 3], [3, 1, 1, 2]]
+M_I = [[14, 11, 3, 9], [9, 14, 11, 13], [13, 9, 14, 11], [11, 13, 9, 14]]
+p = [0, 1, 2, 3]
 
 
-class QarmaState(Trail.State):
+class DeoxysBCState(Trail.State):
     """
-     A representation of the 4x4 state of QARMA
+     A representation of the 4x4 state of DeoxysBCState
      """
 
-    def __init__(self, name, state):
+    def __init__(self, name, state, filename=None, jsontrail=None):
         Trail.State.__init__(self, STATE_ROW, STATE_COL, name, state)
 
     def __repr__(self):
@@ -41,7 +41,7 @@ class QarmaState(Trail.State):
         {}{}{}{}""".strip().format(self.name, *[x for y in self.state for x in y])
 
     def getActiveOnlyState(self):
-        newstate = QarmaState(self.name, getUndefinedState())
+        newstate = DeoxysBCState(self.name, getUndefinedState())
         for row in range(STATE_ROW):
             for col in range(STATE_COL):
                 if newstate.at(row, col) != [0]:
@@ -52,9 +52,9 @@ def getUndefinedState():
     return [[{i for i in range(STATE_SIZE)} for _ in range(STATE_COL)] for _ in range(STATE_ROW)]
 
 
-class QarmaTrail(Trail.Trail):
+class DeoxysBCTrail(Trail.Trail):
     def __init__(self, rounds, filename=None, jsontrail=None):
-        Trail.Trail.__init__(self, rounds, filename, jsontrail, QarmaState, STATE_ROW, STATE_COL, SBOX)
+        Trail.Trail.__init__(self, rounds, filename, jsontrail, STATE_ROW, STATE_COL, SBOX)
 
     def _addProbability(self):
         self.probabilities = []
@@ -186,7 +186,7 @@ class QarmaTrail(Trail.Trail):
             assert name not in self.states or curr_round == self.rounds + 1
             if name in self.states:
                 name = name + "_i"
-            self.states[name] = QarmaState(name, state)
+            self.states[name] = DeoxysBCState(name, state)
 
         elif num_states == 8:
             state = []
@@ -218,8 +218,8 @@ class QarmaTrail(Trail.Trail):
             assert name not in self.states
             assert name2 not in self.states
 
-            self.states[name] = QarmaState(name, state)
-            self.states[name2] = QarmaState(name2, state2)
+            self.states[name] = DeoxysBCState(name, state)
+            self.states[name2] = DeoxysBCState(name2, state2)
 
     def initUI(self, parentui):
         # forward rounds
@@ -362,7 +362,7 @@ class QarmaTrail(Trail.Trail):
             print v
 
     def getActiveOnlyTrail(self):
-        newtrail = QarmaTrail(self.rounds)
+        newtrail = DeoxysBCTrail(self.rounds)
         for k, v in self.states.items():
             newtrail.states[k] = v.getActiveOnlyState()
 
