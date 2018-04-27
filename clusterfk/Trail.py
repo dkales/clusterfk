@@ -3,6 +3,7 @@ import pickle
 from json import JSONEncoder
 
 import Utils
+from clusterfk import Propagation
 
 
 class State:
@@ -63,7 +64,7 @@ class State:
         for row in range(self.staterow):
             for col in range(self.statecol):
                 if self.at(row, col) != {0}:
-                    self.set(row, col, {i for i in range(0, self.statesize)})
+                    self.set(row, col, {i for i in range(0, 16)})
 
     def statesEqual(self, state):
         for row in range(self.staterow):
@@ -87,6 +88,7 @@ class Trail:
         self.rounds = rounds
         self.states = {}
         self.sboxDDT = Utils.initDDT(SBOX)
+        self.propagations = []
 
         if filename is not None:
             with open(filename, "r") as f:
@@ -99,7 +101,6 @@ class Trail:
         elif jsontrail is not None:
             self._parseJSONTrail(jsontrail)
 
-
         self._addPropagation()
         self._addProbability()
 
@@ -111,7 +112,8 @@ class Trail:
 
     def _parseJSONTrail(self, jsontrail):
         for state in jsontrail["states"]:
-            state_sets = [[set(state["state"][row][col]) for row in range(self.staterow)] for col in range(self.statecol)]
+            state_sets = [[set(state["state"][row][col]) for row in range(self.staterow)] for col in
+                          range(self.statecol)]
             self.states[state["name"]] = self.stateclass(state["name"], state_sets)
 
     def _addPropagation(self):
@@ -119,6 +121,29 @@ class Trail:
 
     def _addProbability(self):
         raise NotImplementedError("Subclasses should implement this")
+
+    def propagate(self):
+        # do one propagation without mixcolumns, to speed them up later
+        for p in self.propagations:
+            if not isinstance(p, Propagation.MixColStepDeoxys) and not isinstance(p, Propagation.MixColStep):
+                p.propagate()
+
+        # TODO: also restrict to the back
+        changed = True
+        start = 0
+        while changed:
+            new_start = len(self.propagations) + 1
+            changed = False
+            for i, p in enumerate(self.propagations, start):
+                p.propagate()
+                if p.inchanged or p.outchanged:
+                    changed = True
+                    if i < new_start:
+                        new_start = i
+                        if p.inchanged and i > 0:
+                            new_start = i - 1
+
+            start = new_start
 
     def toJSON(self):
         states = map(lambda state: state.toJSON(), self.states.values())

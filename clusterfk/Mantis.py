@@ -372,27 +372,7 @@ class MantisTrail(Trail.Trail):
             newtrail.states[k] = v.getActiveOnlyState()
 
     def propagate(self):
-        # do one propagation without mixcolumns, to speed them up later
-        for p in self.propagations:
-            if not isinstance(p, Propagation.MixColStep):
-                p.propagate()
-
-        changed = True
-        start = 0
-        while changed:
-            new_start = len(self.propagations) + 1
-            changed = False
-            for i, p in enumerate(self.propagations, start):
-                p.propagate()
-                if p.inchanged or p.outchanged:
-                    changed = True
-                    if i < new_start:
-                        new_start = i
-                        if p.inchanged and i > 0:
-                            new_start = i - 1
-
-            start = new_start
-
+        Trail.Trail.propagate(self)
         self._propagateSameCells()
 
     def _propagateSameCells(self):
@@ -454,7 +434,7 @@ class MantisTrail(Trail.Trail):
             for a, b, c, d in itertools.product(self.states["S0"].at(0, col), self.states["S0"].at(1, col),
                                                 self.states["S0"].at(2, col), self.states["S0"].at(3, col)):
                 self.states["S0"].columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)][(a, b, c, d)] = 1.0 / total
-        for i in range(16):
+        for i in range(STATE_SIZE):
             for poss in self.states["S0"].atI(i):
                 self.states["S0"].stateprobs[i][poss] = 1.0 / len(self.states["S0"].atI(i))
 

@@ -159,7 +159,7 @@ def rotr_list(lst, i, size=4):
 
     new_lst = rotr_list_by_one(lst, size)
     for _ in range(i - 1):
-        rotr_list_by_one(new_lst, size)
+        new_lst = rotr_list_by_one(new_lst, size)
     return new_lst
 
 
@@ -173,7 +173,7 @@ def rotl_list_by_one(lst, size=4):
 
 def rotr_list_by_one(lst, size=4):
     new_lst = [0 for _ in range(size)]
-    new_lst[0] = deepcopy(new_lst[size - 1])
-    for i in range(size - 1, 1):
+    new_lst[0] = deepcopy(lst[size - 1])
+    for i in range(size - 1, 0, -1):
         new_lst[i] = deepcopy(lst[i - 1])
     return new_lst

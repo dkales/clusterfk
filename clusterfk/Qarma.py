@@ -367,28 +367,7 @@ class QarmaTrail(Trail.Trail):
             newtrail.states[k] = v.getActiveOnlyState()
 
     def propagate(self):
-        # do one propagation without mixcolumns, to speed them up later
-        for p in self.propagations:
-            if not isinstance(p, Propagation.MixColStep):
-                p.propagate()
-
-        # TODO: also restrict to the back
-        changed = True
-        start = 0
-        while changed:
-            new_start = len(self.propagations) + 1
-            changed = False
-            for i, p in enumerate(self.propagations, start):
-                p.propagate()
-                if p.inchanged or p.outchanged:
-                    changed = True
-                    if i < new_start:
-                        new_start = i
-                        if p.inchanged and i > 0:
-                            new_start = i - 1
-
-            start = new_start
-
+        Trail.Trail.propagate(self)
         self._propagateSameCells()
 
     def _propagateSameCells(self):

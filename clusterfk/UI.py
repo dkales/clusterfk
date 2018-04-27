@@ -9,15 +9,12 @@ from json import dumps, loads, JSONEncoder, JSONDecoder
 from jsonschema import validate
 import yaml
 
-from clusterfk import Utils
+from clusterfk import Utils, DeoxysBC, Mantis, Qarma
 
 try:
     import cPickle as pickle
 except Exception:
     import pickle
-
-import Mantis
-import Qarma
 
 NUM_STATE_CELLS = (4, 4)  # TODO make dynamic
 MARGIN = 4  # Pixels around the board
@@ -26,7 +23,8 @@ SIDE = 12  # Width of every state cell.
 # TODO put this elsewhere?
 CIPHER_TRAILS = {
     "Mantis": Mantis.MantisTrail,
-    "Qarma": Qarma.QarmaTrail
+    "Qarma": Qarma.QarmaTrail,
+    "DeoxysBC": DeoxysBC.DeoxysBCTrail
 }
 
 

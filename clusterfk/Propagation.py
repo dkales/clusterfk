@@ -1,4 +1,3 @@
-import Mantis
 # internal imports
 import Utils
 
@@ -130,11 +129,12 @@ class SBOXStep(PropagationStep):
     def __init__(self, instate, outstate, DDT):
         PropagationStep.__init__(self, instate, outstate)
         self.ddt = DDT
+        self.size = len(self.ddt[0])
 
     def _getDDTState(self, state):
         ret = set()
         for x in state:
-            ret.update([i for i in range(self.statesize) if self.ddt[x][i] > 0])
+            ret.update([i for i in range(self.size) if self.ddt[x][i] > 0])
         return ret
 
     def propagate(self):
@@ -158,9 +158,7 @@ class SBOXStep(PropagationStep):
 
             if len(self.instate.atI(i)) == 0 or len(self.outstate.atI(i)) == 0:
                 print "Error in: ", self.instate.name
-                # self.instate.setI(i, {0})
-                # self.outstate.setI(i, {0})
-                assert False
+                #assert False
 
 
 class MixColStep(PropagationStep):
@@ -321,13 +319,26 @@ class ShiftRowsStep(PropagationStep):
         self.outchanged = False
 
         for row in range(self.staterow):
-            inrow_old = {self.instate.at(row, col) for col in range(self.statecol)}
-            outrow_old = {self.outstate.at(row, col) for col in range(self.statecol)}
+            inrow_old = [self.instate.at(row, col) for col in range(self.statecol)]
+            outrow_old = [self.outstate.at(row, col) for col in range(self.statecol)]
 
-            inrow_new = {Utils.rotl_list(inrow_old, self.p[row], self.statecol)}
-            outrow_new = {Utils.rotr_list(outrow_old, self.p[row], self.statecol)}
+            inrow_new = Utils.rotr_list(outrow_old, self.p[row], self.statecol)
+            outrow_new = Utils.rotl_list(inrow_old, self.p[row], self.statecol)
 
-            inrow = inrow_new & inrow_old
-            outrow = outrow_new & outrow_old
+            for col in range(self.statecol):
+                incell_new = inrow_old[col] & inrow_new[col]
+                outcell_new = outrow_old[col] & outrow_new[col]
 
-            # TODO finish
+                if cellsdifferent(self.instate.at(row, col), incell_new):
+                    self.inchanged = True
+                if cellsdifferent(self.outstate.at(row, col), incell_new):
+                    self.outchanged = True
+
+                self.instate.set(row, col, incell_new)
+                self.outstate.set(row, col, outcell_new)
+
+                if len(self.instate.at(row, col)) == 0 or len(self.outstate.at(row, col)) == 0:
+                    print "Error in: ", self.instate.name
+                    assert False
+
+#TODO: updateTweakeyDeoxys
