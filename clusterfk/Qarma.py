@@ -11,9 +11,10 @@ STATE_ROW = 4
 STATE_COL = 4
 STATE_SIZE = STATE_ROW * STATE_COL
 
-SBOX = [0, 14, 2, 10, 9, 15, 8, 11, 6, 4, 3, 7, 13, 12, 1, 5]  # Sbox0
+SBOX_0 = [0, 14, 2, 10, 9, 15, 8, 11, 6, 4, 3, 7, 13, 12, 1, 5] #Sbox0
 SBOX_1 = [10, 13, 14, 6, 15, 7, 3, 5, 9, 8, 0, 12, 11, 1, 2, 4]
 SBOX_2 = [11, 6, 8, 15, 13, 0, 9, 14, 3, 7, 4, 5, 12, 2, 1, 10]
+SBOX = SBOX_0
 P = (0, 11, 6, 13, 10, 1, 12, 7, 5, 14, 3, 8, 15, 4, 9, 2)
 P_I = (P.index(x) for x in range(16))
 H = (6, 5, 14, 15, 0, 1, 2, 3, 7, 12, 13, 4, 8, 9, 10, 11)
@@ -329,8 +330,7 @@ class QarmaTrail(Trail.Trail):
 
     def updateColorList(self):
         stateset = self.getSetOfCurrentStates()
-        assert len(stateset) <= len(COLORS)
-        self.colorlist = {state: color for state, color in zip(stateset, COLORS.values())}
+        self.colorlist = {state: color for state, color in zip(stateset, COLORS.values() + ["#999999"]*(len(stateset) - len(COLORS.values())))}
 
         # for familarity, guarantee that 0xa is red
         diff, colorname = frozenset([0xa]), "red"
