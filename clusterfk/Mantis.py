@@ -155,70 +155,6 @@ class MantisTrail(Trail.Trail):
                         Propagation.SBOXStep(self.states["S" + str(i)],
                                              self.states["A" + str(i - 1)], self.sboxDDT))
 
-    def _parseStateBlock(self, stateblock):
-        assert len(stateblock) == STATE_ROW
-        curr_rounds = map(lambda x: int(x.split(" ")[0]), stateblock)
-        assert all(x == curr_rounds[0] for x in curr_rounds)
-        curr_round = curr_rounds[0]
-        num_states = map(lambda x: x.count(":"), stateblock)
-        assert all(x == num_states[0] for x in num_states)
-        num_states = num_states[0]
-        assert num_states in (4, 5, 8)
-
-        cellregex = re.compile("([a-zA-Z]): ([-x]*)")
-
-        if num_states in (4, 5):
-            state = []
-            name = ""
-            for s in stateblock:
-                result = re.findall(cellregex, s)
-                assert len(result) >= 4
-                row = []
-                for i in range(4):
-                    match = result[i]
-                    assert name == "" or name == match[0]
-                    name = match[0]
-                    statestr = match[1].replace("x", "1").replace("-", "0")
-                    row.append({int(statestr, 2)})
-                state.append(row)
-
-            name = name + str(curr_round)
-            assert name not in self.states
-            self.states[name] = MantisState(name, state)
-
-        elif num_states == 8:
-            state = []
-            state2 = []
-            name = ""
-            name2 = ""
-            for s in stateblock:
-                result = re.findall(cellregex, s)
-                assert len(result) >= 4
-                row = []
-                for i in range(4):
-                    match = result[i]
-                    assert name == "" or name == match[0]
-                    name = match[0]
-                    statestr = match[1].replace("x", "1").replace("-", "0")
-                    row.append({int(statestr, 2)})
-                state.append(row)
-                row = []
-                for i in range(4, 8):
-                    match = result[i]
-                    assert name2 == "" or name2 == match[0]
-                    name2 = match[0]
-                    statestr = match[1].replace("x", "1").replace("-", "0")
-                    row.append({int(statestr, 2)})
-                state2.append(row)
-
-            name += str(curr_round)
-            name2 += str(curr_round)
-            assert name not in self.states
-            assert name2 not in self.states
-
-            self.states[name] = MantisState(name, state)
-            self.states[name2] = MantisState(name2, state2)
-
     def initUI(self, parentui):
         # forward rounds
         col = 1
@@ -320,56 +256,6 @@ class MantisTrail(Trail.Trail):
                 l.textvar = v
                 parentui.probabilitylabels["S" + str((self.rounds + 1) * 2 - i)] = l
                 col += 3
-
-    def updateColorList(self):
-        stateset = self.getSetOfCurrentStates()
-        assert len(stateset) <= len(COLORS)
-        self.colorlist = {state: color for state, color in zip(stateset, COLORS.values())}
-
-        # for familarity, guarantee that 0xa is red
-        diff, colorname = frozenset([0xa]), "red"
-        if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
-            if COLORS[colorname] in self.colorlist.values():
-                old_red = self.colorlist.keys()[self.colorlist.values().index(COLORS[colorname])]
-                self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
-            else:
-                self.colorlist[diff] = COLORS[colorname]
-        # for familarity, guarantee that a,f,d,5 is green
-        diff, colorname = frozenset([0xa, 0xd, 0xf, 0x5]), "green"
-        if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
-            if COLORS[colorname] in self.colorlist.values():
-                old_red = self.colorlist.keys()[self.colorlist.values().index(COLORS[colorname])]
-                self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
-            else:
-                self.colorlist[diff] = COLORS[colorname]
-
-        # for familarity, guarantee that 0-f is grey
-        diff, colorname = frozenset(
-            [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f]), "grey"
-        if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
-            if COLORS[colorname] in self.colorlist.values():
-                old_red = self.colorlist.keys()[self.colorlist.values().index(COLORS[colorname])]
-                self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
-            else:
-                self.colorlist[diff] = COLORS[colorname]
-
-        # for familarity, guarantee that a,f is yellow
-        diff, colorname = frozenset([0xa, 0xf]), "yellow"
-        if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
-            if COLORS[colorname] in self.colorlist.values():
-                old_red = self.colorlist.keys()[self.colorlist.values().index(COLORS[colorname])]
-                self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
-            else:
-                self.colorlist[diff] = COLORS[colorname]
-
-    def printTrail(self):
-        for k, v in self.states.items():
-            print v
-
-    def getActiveOnlyTrail(self):
-        newtrail = MantisTrail(self.rounds)
-        for k, v in self.states.items():
-            newtrail.states[k] = v.getActiveOnlyState()
 
     def propagate(self):
         Trail.Trail.propagate(self)

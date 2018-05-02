@@ -208,6 +208,7 @@ class RoundStepDeoxys(ProbabilityStep):
     def getProbability(self, verbose=False):
         overall_prob = 1.0
 
+        #TODO define first stateprops!
         # normalize addstate
         self.NormalizeStateProbs(self.addstate)
 
@@ -218,7 +219,7 @@ class RoundStepDeoxys(ProbabilityStep):
         sboxprob = self.SBOXProbabilityForColumnProbs(self.sboxstate, self.shiftrowstate, self.ddt)
 
         # shift rows step
-        shiftrows = self.ShiftRowsStep(self.shiftrowstate, self.mixcolstate, self.p)
+        self.ShiftRowsStep(self.shiftrowstate, self.mixcolstate, self.p)
 
         # mixcol
         mixcolprob = self.MixColProbability(self.mixcolstate, self.outstate)

@@ -7,7 +7,7 @@ from clusterfk import UI
 
 # UI.ClusterFK(10, "./files/input/deoxysbc256_10r.trail", UI.CIPHER_TRAILS["DeoxysBC"])
 # UI.ClusterFK(5, "./files/input/qarma5.trail", UI.CIPHER_TRAILS["Qarma"])
-# UI.ClusterFK(5, "./files/input/mantis5R_34.trail", UI.CIPHER_TRAILS["Mantis"])
+UI.ClusterFK(5, "./files/input/mantis5R_34.trail", UI.CIPHER_TRAILS["Mantis"])
 # UI.ClusterFK(5, "./files/input/mantis5R_36.trail", UI.CIPHER_TRAILS["Mantis"])
 # UI.ClusterFK(6, "./files/input/mantis6R_48_2t.trail", UI.CIPHER_TRAILS["Mantis"])
 # UI.ClusterFK(7, "./files/input/7r.trail", UI.CIPHER_TRAILS["Mantis"])
