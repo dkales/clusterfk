@@ -245,9 +245,8 @@ class Trail:
 
     def updateColorList(self):
         stateset = self.getSetOfCurrentStates()
-        assert len(stateset) <= len(COLORS)
-        self.colorlist = {state: color for state, color in zip(stateset, COLORS.values())}
-
+        self.colorlist = {state: color for state, color in
+                          zip(stateset, COLORS.values() + ["#999999"] * (len(stateset) - len(COLORS.values())))}
         # for familarity, guarantee that 0xa is red
         diff, colorname = frozenset([0xa]), "red"
         if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:

@@ -41,6 +41,7 @@ class StatePopup(object):
         self.e.icursor('end')
         self.e.focus()
         self.b = Button(top, text='Ok', command=self.check_cleanup)
+        self.top.protocol("WM_DELETE_WINDOW", self.close)
         self.b.pack()
         self.l2 = Label(top, text="Probabilities")
         self.l2.pack()
@@ -49,8 +50,11 @@ class StatePopup(object):
                 l = Label(top, text=hex(i)[2:] + ":" + str(x))
                 l.pack()
         self.top.bind("<Return>", lambda x: self.check_cleanup())
-        self.top.bind("<Escape>", lambda x: self.top.destroy())
+        self.top.bind("<Escape>", lambda x: self.close())
         self.value = None
+        self.top.wait_visibility()
+        self.top.grab_set()
+        # stop interaction in other gui
 
     def select_all(event):
         event.e.select_range(0, 'end')
@@ -77,6 +81,11 @@ class StatePopup(object):
                 print e
                 self.value = None
                 return
+
+        self.close()
+
+    def close(self):
+        self.top.grab_release()
         self.top.destroy()
 
 
@@ -109,6 +118,9 @@ class StateUI(Frame):
         self.canvas.pack(fill=None)
 
         self.redraw_state()
+
+        # bind keyboard
+        # self.canvas.focus_set()
 
         self.canvas.bind("<Button-1>", self.__cell_clicked)
         self.canvas.bind("<Key>", self.__key_pressed)
@@ -167,21 +179,38 @@ class StateUI(Frame):
         state_col = (event.x - self.__dim["MARGIN"]) // self.__dim["SIDE"]
         state_row = (event.y - self.__dim["MARGIN"]) // self.__dim["SIDE"]
         oldstate = self.state.at(state_row, state_col)
-        if 0 <= state_col < 4 and 0 <= state_row < 4:
-            print "Cell ({},{}) = {}".format(state_row, state_col, oldstate)
-        oldstatestr = ",".join(["{:x}".format(x) for x in oldstate])
+        state_probs = self.state.stateprobs[state_row * 4 + state_col]
+        selected_cell = {"stateUI": self, "row": state_row, "col": state_col, "oldstate": oldstate,
+                         "state_probs": state_probs}
 
-        x = self.__dim["MARGIN"] + state_col * self.__dim["SIDE"]
-        y = self.__dim["MARGIN"] + state_row * self.__dim["SIDE"]
-        self.canvas.create_rectangle(x, y, x + self.__dim["SIDE"], y + self.__dim["SIDE"], fill='', outline="red",
-                                     width=2.0, tags="statehighlight")
-        dialog = StatePopup(self.__parent, oldstatestr, self.state.stateprobs[state_row * 4 + state_col])
-        self.__parent.wait_window(dialog.top)
-        self.canvas.delete("statehighlight")
-        newstate = dialog.value
-        if newstate is not None:
-            self.state.set(state_row, state_col, set(newstate))
-            self.__trailui.redraw_all()
+        if selected_cell in self.__trailui.selectedcells:
+            # deselect cell if it is already selected
+            self.deselect_cell(selected_cell)
+            self.remove_cell(selected_cell)
+        else:
+            self.select_cell(selected_cell)
+
+        if self.__trailui.multiselection is False:
+            self.__trailui.open_cell_dialogue()
+
+    def select_cell(self, selected_cell):
+        if 0 <= selected_cell["col"] < 4 and 0 <= selected_cell["row"] < 4:
+            print "Cell ({},{}) = {}".format(selected_cell["row"], selected_cell["col"], selected_cell["oldstate"])
+
+        x = self.__dim["MARGIN"] + selected_cell["col"] * self.__dim["SIDE"]
+        y = self.__dim["MARGIN"] + selected_cell["row"] * self.__dim["SIDE"]
+        self.canvas.create_rectangle(x, y, x + self.__dim["SIDE"], y + self.__dim["SIDE"], fill='',
+                                     outline="red",
+                                     width=2.0, tags="statehighlight" + str(selected_cell["row"]) + "_" + str(
+                selected_cell["col"]))
+
+        self.__trailui.selectedcells.append(selected_cell)
+
+    def deselect_cell(self, selected_cell):
+        self.canvas.delete("statehighlight" + str(selected_cell["row"]) + "_" + str(selected_cell["col"]))
+
+    def remove_cell(self, selected_cell):
+        self.__trailui.selectedcells.remove(selected_cell)
 
 
 class TrailUI:
@@ -204,6 +233,49 @@ class TrailUI:
         self.enable_propagation = True
         self.trail.updateColorList()
         self.trail.initUI(self)
+
+        # Multi Cell Selection
+        self.multiselection = False
+        self.selectedcells = []
+        self.parent.bind("<Control_L>", self.__selection_start)
+        self.parent.bind("<KeyRelease-Control_L>", self.__selection_end)
+
+    def __selection_start(self, event):
+        print "Selection started"
+        self.multiselection = True
+
+    def __selection_end(self, event):
+        print "Selection ended"
+        self.multiselection = False
+        self.open_cell_dialogue()
+
+    def open_cell_dialogue(self):
+        if len(self.selectedcells) is 0:
+            return
+
+        # oldstate = self.__clickedcells[0]["oldstate"]
+        # oldstatestr = ",".join(["{:x}".format(x) for x in oldstate])
+        oldstatestr = ""
+
+        dialog = StatePopup(self.canvas, oldstatestr,
+                            self.selectedcells[0]["state_probs"])  # TODO add probs
+
+        self.trailframe.wait_window(dialog.top)
+
+        newstate = dialog.value
+        # set each cell of the selection to the new state
+        if newstate is not None:
+            for i, cell in enumerate(self.selectedcells):
+                cell["stateUI"].state.set(cell["row"], cell["col"], set(newstate))
+
+        self._clear_selection()
+        self.redraw_all()
+
+    def _clear_selection(self):
+        for i, cell in enumerate(self.selectedcells):
+            cell["stateUI"].deselect_cell(cell)
+
+        self.selectedcells = []
 
     def __toggle_prop(self):
         self.enable_propagation = not self.enable_propagation
@@ -315,7 +387,8 @@ class ClusterFK:
         if f is None:
             return
 
-        #load JSON data as string, not unicode string
+        # TODO: check against json schema
+        # load JSON data as string, not unicode string
         imported_trail = _byteify(json.load(f, object_hook=_byteify), ignore_dicts=True)
 
         f.close()
