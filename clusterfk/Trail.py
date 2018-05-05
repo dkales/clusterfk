@@ -218,6 +218,8 @@ class Trail:
 
             start = new_start
 
+        print "Finished Propagation"
+
     def toJSON(self):
         states = map(lambda state: state.toJSON(), self.states.values())
 
