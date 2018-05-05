@@ -120,60 +120,32 @@ class DeoxysBCTrail(Trail.Trail):
         # TODO: add if tweak is in input
 
     def initUI(self, parentui):
-        # forward rounds
-        col = 1
-        row = 0
-        for i in range(self.rounds + 1):
-            if i != 0:
-                col += 2
-                v = StringVar()
-                l = Label(parentui.trailframe, textvariable=v)
-                l.textvar = v
-                l.grid(fill=None, row=row, column=col, columnspan=2)
-                parentui.probabilitylabels["M" + str(i)] = l
-                col += 1
-                v = StringVar()
-                l = Label(parentui.trailframe, textvariable=v)
-                l.textvar = v
-                l.grid(fill=None, row=row, column=col, columnspan=2)
-                parentui.probabilitylabels["S" + str(i)] = l
-                col += 2
-            else:
-                v = StringVar()
-                l = Label(parentui.trailframe, textvariable=v)
-                l.textvar = v
-                l.grid(fill=None, row=row, column=col, columnspan=3)
-                parentui.probabilitylabels["S" + str(i)] = l
-                col += 3
-
-        col = 0
-        row += 1
-        for i in range(self.rounds + 1):
-            UI.StateUI(parentui, row, col, self.states["A" + str(i)])
-            col += 2
-            if i != 0:
-                UI.StateUI(parentui, row, col, self.states["P" + str(i)])
-                col += 1
-                UI.StateUI(parentui, row, col, self.states["M" + str(i)])
-                col += 1
-            UI.StateUI(parentui, row, col, self.states["S" + str(i)])
-            col += 1
-
-        # inner round forwards
-        UI.StateUI(parentui, row, col, self.states["A" + str(self.rounds + 1)])
-        col += 1
-        UI.StateUI(parentui, row, col, self.states["I" + str(self.rounds + 1)])
-
         # tweak
+        # TODO: update for TweakeySchedule
         col = 0
-        row += 1
-        for i in range(self.rounds + 1):
+        row = 0
+        for i in range(1, self.rounds):
             UI.StateUI(parentui, row, col, self.states["T" + str(i)], gridopts={"columnspan": 3})
-            if i != 0:
-                col += 2
+            col += 2
             col += 3
 
+
+        # rounds
+        col = 0
+        row += 1
+        for i in range(1, self.rounds):
+            UI.StateUI(parentui, row, col, self.states["A" + str(i)])
+            col += 2
+            UI.StateUI(parentui, row, col, self.states["S" + str(i)])
+            col += 1
+            UI.StateUI(parentui, row, col, self.states["R" + str(i)])
+            col += 1
+            UI.StateUI(parentui, row, col, self.states["M" + str(i)])
+            col += 1
+
         col -= 1
+
+        # TODO add last round (additional AddTweakey)
 
         v = StringVar()
         l = Label(parentui.trailframe, textvariable=v)
@@ -181,49 +153,6 @@ class DeoxysBCTrail(Trail.Trail):
         l.grid(fill=None, row=row, column=col, columnspan=3)
         parentui.probabilitylabels["I"] = l
 
-        # backwards rounds
-        col = 0
-        row += 1
-        for i in range((self.rounds + 1) * 2, self.rounds + 1, -1):
-            UI.StateUI(parentui, row, col, self.states["A" + str(i)])
-            col += 2
-            if i != (self.rounds + 1) * 2:
-                UI.StateUI(parentui, row, col, self.states["P" + str(i)])
-                col += 1
-                UI.StateUI(parentui, row, col, self.states["M" + str(i)])
-                col += 1
-            UI.StateUI(parentui, row, col, self.states["S" + str(i)])
-            col += 1
-
-        # inner round backwards
-        UI.StateUI(parentui, row, col, self.states["I" + str(self.rounds + 1) + "_i"])
-        col += 1
-        UI.StateUI(parentui, row, col, self.states["A" + str(self.rounds + 1) + "_i"])
-
-        col = 1
-        row += 1
-        for i in range(self.rounds + 1):
-            if i != 0:
-                col += 2
-                v = StringVar()
-                l = Label(parentui.trailframe, textvariable=v)
-                l.textvar = v
-                l.grid(fill=None, row=row, column=col, columnspan=2)
-                parentui.probabilitylabels["M" + str((self.rounds + 1) * 2 - i)] = l
-                col += 1
-                v = StringVar()
-                l = Label(parentui.trailframe, textvariable=v)
-                l.grid(fill=None, row=row, column=col, columnspan=2)
-                l.textvar = v
-                parentui.probabilitylabels["S" + str((self.rounds + 1) * 2 - i)] = l
-                col += 2
-            else:
-                v = StringVar()
-                l = Label(parentui.trailframe, textvariable=v)
-                l.grid(fill=None, row=row, column=col, columnspan=3)
-                l.textvar = v
-                parentui.probabilitylabels["S" + str((self.rounds + 1) * 2 - i)] = l
-                col += 3
 
     def getProbability(self, verbose=False):
         totalprob = 1.0
@@ -233,26 +162,28 @@ class DeoxysBCTrail(Trail.Trail):
             state.stateprobs = [[0.0] * 16 for _ in range(16)]
 
         # set the probability of the first state to a uniform distribution
-        self.states["S0"].columnprobs = {}
+        first_state = "S1"
+        self.states[first_state].columnprobs = {}
         for col in range(4):
-            self.states["S0"].columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)] = {}
-            total = len(self.states["S0"].at(0, col)) * len(self.states["S0"].at(1, col)) * len(
-                self.states["S0"].at(2, col)) * len(self.states["S0"].at(3, col))
-            for a, b, c, d in itertools.product(self.states["S0"].at(0, col), self.states["S0"].at(1, col),
-                                                self.states["S0"].at(2, col), self.states["S0"].at(3, col)):
-                self.states["S0"].columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)][(a, b, c, d)] = 1.0 / total
+            self.states[first_state].columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)] = {}
+            total = len(self.states[first_state].at(0, col)) * len(self.states[first_state].at(1, col)) * len(
+                self.states[first_state].at(2, col)) * len(self.states[first_state].at(3, col))
+            for a, b, c, d in itertools.product(self.states[first_state].at(0, col), self.states[first_state].at(1, col),
+                                                self.states[first_state].at(2, col), self.states[first_state].at(3, col)):
+                self.states[first_state].columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)][(a, b, c, d)] = 1.0 / total
         for i in range(16):
-            for poss in self.states["S0"].atI(i):
-                self.states["S0"].stateprobs[i][poss] = 1.0 / len(self.states["S0"].atI(i))
+            for poss in self.states[first_state].atI(i):
+                self.states[first_state].stateprobs[i][poss] = 1.0 / len(self.states[first_state].atI(i))
 
         for prob in self.probabilities:
             totalprob *= prob.getProbability(verbose=verbose)[0]
 
         inputposs = 1
         outputposs = 1
+        # TODO
         for i in range(STATE_SIZE):
-            inputposs *= len(self.states["A0"].atI(i))
-            outputposs *= len(self.states["A" + str((self.rounds + 1) * 2)].atI(i))
+            inputposs *= len(self.states["A1"].atI(i))
+            outputposs *= len(self.states["A" + str(self.rounds)].atI(i)) # TODO: add +1
 
         print "inputposs : 2**{}".format(math.log(inputposs, 2))
         print "outputposs: 2**{}".format(math.log(outputposs, 2))
