@@ -10,6 +10,7 @@ import itertools
 STATE_ROW = 4
 STATE_COL = 4
 STATE_SIZE = STATE_ROW * STATE_COL
+STATE_BIT_SIZE = 64
 
 SBOX = [0, 14, 2, 10, 9, 15, 8, 11, 6, 4, 3, 7, 13, 12, 1, 5]  # Sbox0
 SBOX_1 = [10, 13, 14, 6, 15, 7, 3, 5, 9, 8, 0, 12, 11, 1, 2, 4]
@@ -30,7 +31,7 @@ class QarmaState(Trail.State):
      """
 
     def __init__(self, name, state):
-        Trail.State.__init__(self, STATE_ROW, STATE_COL, name, state)
+        Trail.State.__init__(self, name, state)
 
     def __repr__(self):
         return """
@@ -54,7 +55,7 @@ def getUndefinedState():
 
 class QarmaTrail(Trail.Trail):
     def __init__(self, rounds, filename=None, jsontrail=None):
-        Trail.Trail.__init__(self, rounds, filename, jsontrail, QarmaState, STATE_ROW, STATE_COL, SBOX)
+        Trail.Trail.__init__(self, rounds, filename, jsontrail, QarmaState, SBOX)
 
     def _addProbability(self):
         self.probabilities = []

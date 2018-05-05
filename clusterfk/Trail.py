@@ -14,11 +14,12 @@ class State:
     A representation of the 4x4 state
     """
 
-    def __init__(self, staterow, statecol, name, state):
+    def __init__(self, name, state, staterow=4, statecol=4, statebitsize=64):
         self.name = name
         self.staterow = staterow
         self.statecol = statecol
         self.statesize = staterow * statecol
+        self.statebitsize = statebitsize
         self.state = state
         self.stateprobs = [[0.0] * self.statesize for _ in range(self.statesize)]
         self.statenumbers = [0 for _ in range(self.statesize)]
@@ -67,7 +68,7 @@ class State:
         for row in range(self.staterow):
             for col in range(self.statecol):
                 if self.at(row, col) != {0}:
-                    self.set(row, col, {i for i in range(0, 16)})
+                    self.set(row, col, {i for i in range(0, 2 ** (self.statebitsize / self.statesize))})
 
     def statesEqual(self, state):
         for row in range(self.staterow):
@@ -83,15 +84,21 @@ class Trail:
     and also the connecting operations between them
     """
 
-    def __init__(self, rounds, filename, jsontrail, stateclass, staterow, statecol, SBOX):
+    def __init__(self, rounds, filename, jsontrail, stateclass, SBOX, statebitsize=64, staterow=4, statecol=4,
+                 alpha_reflection=True):
         self.stateclass = stateclass
         self.staterow = staterow
         self.statecol = statecol
         self.statesize = staterow * statecol
+        self.statebitsize = statebitsize
         self.rounds = rounds
         self.states = {}
         self.sboxDDT = Utils.initDDT(SBOX)
         self.propagations = []
+        self.alpha_reflection = alpha_reflection
+
+        if filename is None and jsontrail is None:
+            raise Exception("Provide either trail-file (.trail) or jsontrail (.json)")
 
         if filename is not None:
             with open(filename, "r") as f:
@@ -101,6 +108,7 @@ class Trail:
 
             for i in range(0, len(content), self.staterow):
                 self._parseStateBlock(map(lambda x: x.strip(), content[i:i + self.staterow]))
+
         elif jsontrail is not None:
             self._parseJSONTrail(jsontrail)
 
@@ -134,8 +142,8 @@ class Trail:
                     assert name == "" or name == match[0]
                     name = match[0]
                     statestr = match[1].replace("x", "1").replace("-", "0")
-                    if "*" in statestr:  # TODO adapt to bit#
-                        row.append({i for i in range(0, 0xff)})
+                    if "*" in statestr:
+                        row.append({i for i in range(0, self.statebitsize / self.statesize)})
                     else:
                         row.append({int(statestr, 2)})
                 state.append(row)
@@ -162,7 +170,7 @@ class Trail:
                     name = match[0]
                     statestr = match[1].replace("x", "1").replace("-", "0")
                     if "*" in statestr:
-                        row.append({i for i in range(0, 0xff)})
+                        row.append({i for i in range(0, self.statebitsize / self.statesize)})
                     else:
                         row.append({int(statestr, 2)})
                 state.append(row)

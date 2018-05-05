@@ -10,6 +10,7 @@ import itertools
 STATE_ROW = 4
 STATE_COL = 4
 STATE_SIZE = STATE_ROW * STATE_COL
+STATE_BIT_SIZE = 64
 
 SBOX = [12, 10, 13, 3, 14, 11, 15, 7, 8, 9, 1, 5, 0, 2, 4, 6]
 P = (0, 11, 6, 13, 10, 1, 12, 7, 5, 14, 3, 8, 15, 4, 9, 2)
@@ -25,7 +26,7 @@ class MantisState(Trail.State):
     """
 
     def __init__(self, name, state):
-        Trail.State.__init__(self, STATE_ROW, STATE_COL, name, state)
+        Trail.State.__init__(self, name, state)
 
     def __repr__(self):
         return """
@@ -49,7 +50,7 @@ def getUndefinedState():
 
 class MantisTrail(Trail.Trail):
     def __init__(self, rounds, filename=None, jsontrail=None):
-        Trail.Trail.__init__(self, rounds, filename, jsontrail, MantisState, STATE_ROW, STATE_COL, SBOX)
+        Trail.Trail.__init__(self, rounds, filename, jsontrail, MantisState, SBOX)
 
     def _addProbability(self):
         self.probabilities = []

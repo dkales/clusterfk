@@ -12,6 +12,7 @@ import time
 STATE_ROW = 4
 STATE_COL = 4
 STATE_SIZE = STATE_ROW * STATE_COL
+STATE_BIT_SIZE = 128
 
 SBOX = [
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -65,7 +66,7 @@ class DeoxysBCState(Trail.State):
      """
 
     def __init__(self, name, state, filename=None, jsontrail=None):
-        Trail.State.__init__(self, STATE_ROW, STATE_COL, name, state)
+        Trail.State.__init__(self, name, state, statebitsize=STATE_BIT_SIZE)
 
     def __repr__(self):
         return """
@@ -90,7 +91,8 @@ def getUndefinedState():
 class DeoxysBCTrail(Trail.Trail):
     def __init__(self, rounds, filename=None, jsontrail=None):
         self.sboxDDT_I = Utils.initDDT(SBOX_I)
-        Trail.Trail.__init__(self, rounds, filename, jsontrail, DeoxysBCState, STATE_ROW, STATE_COL, SBOX)
+        Trail.Trail.__init__(self, rounds, filename, jsontrail, DeoxysBCState, SBOX, statebitsize=STATE_BIT_SIZE,
+                             alpha_reflection=False)
 
     def _addProbability(self):
         self.probabilities = []
@@ -124,16 +126,36 @@ class DeoxysBCTrail(Trail.Trail):
         # TODO: update for TweakeySchedule
         col = 0
         row = 0
-        for i in range(1, self.rounds):
+        for i in range(1, self.rounds + 1):
             UI.StateUI(parentui, row, col, self.states["T" + str(i)], gridopts={"columnspan": 3})
             col += 2
             col += 3
 
-
         # rounds
-        col = 0
+        col = 1
         row += 1
-        for i in range(1, self.rounds):
+        for i in range(1, self.rounds + 1):
+            # sbox
+            col += 2
+            v = StringVar()
+            l = Label(parentui.trailframe, textvariable=v)
+            l.textvar = v
+            l.grid(fill=None, row=row, column=col, columnspan=2)
+            parentui.probabilitylabels["S" + str(i)] = l
+
+            col += 1
+
+            # mixcol
+            v = StringVar()
+            l = Label(parentui.trailframe, textvariable=v)
+            l.textvar = v
+            l.grid(fill=None, row=row, column=col, columnspan=2)
+            parentui.probabilitylabels["M" + str(i)] = l
+            col += 2
+
+        col = 0
+        #row += 1
+        for i in range(1, self.rounds + 1):
             UI.StateUI(parentui, row, col, self.states["A" + str(i)])
             col += 2
             UI.StateUI(parentui, row, col, self.states["S" + str(i)])
@@ -146,13 +168,6 @@ class DeoxysBCTrail(Trail.Trail):
         col -= 1
 
         # TODO add last round (additional AddTweakey)
-
-        v = StringVar()
-        l = Label(parentui.trailframe, textvariable=v)
-        l.textvar = v
-        l.grid(fill=None, row=row, column=col, columnspan=3)
-        parentui.probabilitylabels["I"] = l
-
 
     def getProbability(self, verbose=False):
         totalprob = 1.0
@@ -168,8 +183,10 @@ class DeoxysBCTrail(Trail.Trail):
             self.states[first_state].columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)] = {}
             total = len(self.states[first_state].at(0, col)) * len(self.states[first_state].at(1, col)) * len(
                 self.states[first_state].at(2, col)) * len(self.states[first_state].at(3, col))
-            for a, b, c, d in itertools.product(self.states[first_state].at(0, col), self.states[first_state].at(1, col),
-                                                self.states[first_state].at(2, col), self.states[first_state].at(3, col)):
+            for a, b, c, d in itertools.product(self.states[first_state].at(0, col),
+                                                self.states[first_state].at(1, col),
+                                                self.states[first_state].at(2, col),
+                                                self.states[first_state].at(3, col)):
                 self.states[first_state].columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)][(a, b, c, d)] = 1.0 / total
         for i in range(16):
             for poss in self.states[first_state].atI(i):
@@ -183,7 +200,7 @@ class DeoxysBCTrail(Trail.Trail):
         # TODO
         for i in range(STATE_SIZE):
             inputposs *= len(self.states["A1"].atI(i))
-            outputposs *= len(self.states["A" + str(self.rounds)].atI(i)) # TODO: add +1
+            outputposs *= len(self.states["A" + str(self.rounds)].atI(i))  # TODO: add +1
 
         print "inputposs : 2**{}".format(math.log(inputposs, 2))
         print "outputposs: 2**{}".format(math.log(outputposs, 2))

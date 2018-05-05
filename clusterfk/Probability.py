@@ -208,7 +208,6 @@ class RoundStepDeoxys(ProbabilityStep):
     def getProbability(self, verbose=False):
         overall_prob = 1.0
 
-        #TODO define first stateprops!
         # normalize addstate
         self.NormalizeStateProbs(self.addstate)
 

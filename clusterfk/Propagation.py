@@ -17,6 +17,7 @@ class PropagationStep:
     def __init__(self, instate, outstate):
         self.instate = instate
         self.outstate = outstate
+        self.statebitsize = instate.statebitsize
         self.statesize = instate.statesize
         self.staterow = instate.staterow
         self.statecol = instate.statecol
@@ -125,73 +126,25 @@ class XORStep(PropagationStep):
                 assert False
 
 
-class SBOXStep_Orig(PropagationStep):
-    def __init__(self, instate, outstate, DDT, DDT_I = None):
-        PropagationStep.__init__(self, instate, outstate)
-        self.ddt = DDT
-        if DDT_I is not None:
-            self.ddt_I = DDT_I
-        else:
-            self.ddt_I = self.ddt
-        self.size = len(self.ddt[0])
-
-    def _getDDTState(self, state):
-        ret = set()
-        for x in state:
-            ret.update([i for i in range(self.size) if self.ddt[x][i] > 0])
-        return ret
-
-    def _getDDTState_I(self, state):
-        ret = set()
-        for x in state:
-            turned_x = 1
-            ret.update([i for i in range(self.size) if self.ddt_I[turned_x][i] > 0])
-        return ret
-
-    def propagate(self):
-        self.inchanged = False
-        self.outchanged = False
-
-        # TODO check SBOX bytes
-        for i in range(self.statesize):
-            outposs = self._getDDTState(self.instate.atI(i))
-            inposs = self._getDDTState_I(self.outstate.atI(i))
-
-            instate_new = self.instate.atI(i) & inposs
-            outstate_new = self.outstate.atI(i) & outposs
-
-            if cellsdifferent(self.instate.atI(i), instate_new):
-                self.inchanged = True
-            if cellsdifferent(self.outstate.atI(i), outstate_new):
-                self.outchanged = True
-
-            self.instate.setI(i, instate_new)
-            self.outstate.setI(i, outstate_new)
-
-            if len(self.instate.atI(i)) == 0 or len(self.outstate.atI(i)) == 0:
-                print "Error in: ", self.instate.name
-                assert False
-
 class SBOXStep(PropagationStep):
-    def __init__(self, instate, outstate, DDT, DDT_I = None):
+    def __init__(self, instate, outstate, DDT, DDT_I=None):
         PropagationStep.__init__(self, instate, outstate)
         self.ddt = DDT
         if DDT_I is not None:
             self.ddt_I = DDT_I
         else:
             self.ddt_I = self.ddt
-        self.size = len(self.ddt[0])
 
     def _getDDTState(self, state):
         ret = set()
         for x in state:
-            ret.update([i for i in range(self.size) if self.ddt[x][i] > 0])
+            ret.update([i for i in range(2 ** (self.statebitsize / self.statesize)) if self.ddt[x][i] > 0])
         return ret
 
     def _getDDTState_I(self, state):
         ret = set()
         for x in state:
-            ret.update([i for i in range(self.size) if self.ddt_I[x][i] > 0])
+            ret.update([i for i in range(2 ** (self.statebitsize / self.statesize)) if self.ddt_I[x][i] > 0])
         return ret
 
     def propagate(self):
@@ -203,8 +156,8 @@ class SBOXStep(PropagationStep):
             outposs = self._getDDTState(self.instate.atI(i))
             inposs = self._getDDTState_I(self.outstate.atI(i))
 
-            instate_new = self.instate.atI(i) & inposs
             outstate_new = self.outstate.atI(i) & outposs
+            instate_new = self.instate.atI(i) & inposs
 
             if cellsdifferent(self.instate.atI(i), instate_new):
                 self.inchanged = True
@@ -399,4 +352,4 @@ class ShiftRowsStep(PropagationStep):
                     print "Error in: ", self.instate.name
                     assert False
 
-#TODO: updateTweakeyDeoxys
+# TODO: updateTweakeyDeoxys

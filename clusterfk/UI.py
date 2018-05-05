@@ -1,7 +1,7 @@
 import Tkinter
 import unicodedata
 from Tkinter import Tk, Canvas, Frame, Button, Entry, Toplevel, Label, Menu, Checkbutton, BooleanVar
-from Tkinter import BOTH, TOP, BOTTOM, LEFT, RIGHT
+from Tkinter import BOTH, TOP, BOTTOM, LEFT, RIGHT, LAST, FIRST
 import tkFileDialog
 import math
 import json
@@ -16,8 +16,8 @@ try:
 except Exception:
     import pickle
 
-NUM_STATE_CELLS = (4, 4)  # TODO make dynamic
-MARGIN = 4  # Pixels around the board
+MARGIN_LR = 10  # Pixels left and right of the board (x)
+MARGIN_TB = 12  # Pixels above and below board (y)
 SIDE = 12  # Width of every state cell.
 
 # TODO put this elsewhere?
@@ -92,29 +92,31 @@ class StatePopup(object):
 class StateUI(Frame):
     def __init__(self, trailui, row, col, state, scale=1, gridopts={}):
         self.state = state
-        self.__row = row
-        self.__col = col
-        self.__parent = trailui.trailframe
-        self.__trailui = trailui
-        self.__scale = scale
+        self._row = row
+        self._col = col
+        self._parent = trailui.trailframe
+        self._trailui = trailui
+        self._scale = scale
 
         self.__setScaling(scale)
-        Frame.__init__(self, self.__parent)
+        Frame.__init__(self, self._parent)
         self.__initUI(gridopts)
         trailui.states.append(self)
 
     def __setScaling(self, scale):
-        self.__dim = {}
-        self.__dim["MARGIN"] = int(MARGIN * scale)
-        self.__dim["SIDE"] = int(SIDE * scale)
-        self.__dim["WIDTH"] = self.__dim["SIDE"] * 4 + self.__dim["MARGIN"] * 2
-        self.__dim["HEIGHT"] = self.__dim["SIDE"] * 4 + self.__dim["MARGIN"] * 2
+        self._dim = {}
+        # self.__dim["MARGIN"] = int(MARGIN * scale)
+        self._dim["MARGIN_LR"] = int(MARGIN_LR)
+        self._dim["MARGIN_TB"] = int(MARGIN_TB)
+        self._dim["SIDE"] = int(SIDE * scale)
+        self._dim["WIDTH"] = self._dim["SIDE"] * self.state.staterow + self._dim["MARGIN_LR"] * 2
+        self._dim["HEIGHT"] = self._dim["SIDE"] * self.state.statecol + self._dim["MARGIN_TB"] * 2
 
     def __initUI(self, gridopts):
-        self.grid(fill=None, row=self.__row, column=self.__col, **gridopts)
+        self.grid(fill=None, row=self._row, column=self._col, **gridopts)
         self.canvas = Canvas(self,
-                             width=self.__dim["WIDTH"],
-                             height=self.__dim["HEIGHT"])
+                             width=self._dim["WIDTH"],
+                             height=self._dim["HEIGHT"])
         self.canvas.pack(fill=None)
 
         self.redraw_state()
@@ -133,90 +135,143 @@ class StateUI(Frame):
         for i in xrange(5):
             color = "blue" if i % 4 == 0 else "gray"
 
-            x0 = self.__dim["MARGIN"] + i * self.__dim["SIDE"]
-            y0 = self.__dim["MARGIN"]
-            x1 = self.__dim["MARGIN"] + i * self.__dim["SIDE"]
-            y1 = self.__dim["HEIGHT"] - self.__dim["MARGIN"]
+            x0 = self._dim["MARGIN_LR"] + i * self._dim["SIDE"]
+            y0 = self._dim["MARGIN_TB"]
+            x1 = self._dim["MARGIN_LR"] + i * self._dim["SIDE"]
+            y1 = self._dim["HEIGHT"] - self._dim["MARGIN_TB"]
             self.canvas.create_line(x0, y0, x1, y1, fill=color, tags="grid")
 
-            x0 = self.__dim["MARGIN"]
-            y0 = self.__dim["MARGIN"] + i * self.__dim["SIDE"]
-            x1 = self.__dim["WIDTH"] - self.__dim["MARGIN"]
-            y1 = self.__dim["MARGIN"] + i * self.__dim["SIDE"]
+            x0 = self._dim["MARGIN_LR"]
+            y0 = self._dim["MARGIN_TB"] + i * self._dim["SIDE"]
+            x1 = self._dim["WIDTH"] - self._dim["MARGIN_LR"]
+            y1 = self._dim["MARGIN_TB"] + i * self._dim["SIDE"]
             self.canvas.create_line(x0, y0, x1, y1, fill=color, tags="grid")
 
     def redraw_state(self):
         self.canvas.delete("state")
-        # self.__draw_grid()
-        for i in xrange(NUM_STATE_CELLS[0]):
-            for j in xrange(NUM_STATE_CELLS[1]):
+
+        # draw grid
+        for i in xrange(self.state.staterow):
+            for j in xrange(self.state.statecol):
                 val = self.state.at(i, j)
 
                 if val == [0] or val == {0}:
                     color = "white"
                 else:
-                    color = self.__trailui.trail.colorlist[frozenset(val)]
+                    color = self._trailui.trail.colorlist[frozenset(val)]
 
-                x = self.__dim["MARGIN"] + j * self.__dim["SIDE"]
-                y = self.__dim["MARGIN"] + i * self.__dim["SIDE"]
-                self.canvas.create_rectangle(x, y, x + self.__dim["SIDE"], y + self.__dim["SIDE"], fill=color,
+                x = self._dim["MARGIN_LR"] + j * self._dim["SIDE"]
+                y = self._dim["MARGIN_TB"] + i * self._dim["SIDE"]
+                self.canvas.create_rectangle(x, y, x + self._dim["SIDE"], y + self._dim["SIDE"], fill=color,
                                              tags="state")
 
-                # if len(val) != 1 or val == [0]:
-                # textval = ""
-                # else:
-                # textval = "{:x}".format(val[0])
-                if self.state.statenumbers[i * NUM_STATE_CELLS[0] + j] != 0:
-                    x = self.__dim["MARGIN"] + j * self.__dim["SIDE"] + self.__dim["SIDE"] / 2
-                    y = self.__dim["MARGIN"] + i * self.__dim["SIDE"] + self.__dim["SIDE"] / 2
-                    self.canvas.create_text(x, y, text=str(self.state.statenumbers[i * NUM_STATE_CELLS[0] + j]),
+                # numbers in state cells for same propagation
+                if self.state.statenumbers[i * self.state.staterow + j] != 0:
+                    x = self._dim["MARGIN_LR"] + j * self._dim["SIDE"] + self._dim["SIDE"] / 2
+                    y = self._dim["MARGIN_TB"] + i * self._dim["SIDE"] + self._dim["SIDE"] / 2
+                    self.canvas.create_text(x, y, text=str(self.state.statenumbers[i * self.state.staterow + j]),
                                             tags="state", fill="black")
+
+        # print name
+        if "T" in self.state.name:
+            if self._trailui.alpha_reflection is True:
+                self.canvas.create_text(self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.staterow / 2,
+                                        self._dim["MARGIN_TB"] / 2,
+                                        text=self.state.name)
+            else:
+                self.canvas.create_text(self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.staterow / 2,
+                                        self._dim["MARGIN_TB"] / 2,
+                                        text=self.state.name)
+        else:
+            self.canvas.create_text(self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.staterow / 2,
+                                    self._dim["MARGIN_TB"] / 2,
+                                    text=self.state.name)
+
+    def redraw_propagation(self):
+        #TODO enhance
+        self.canvas.delete("prop")
+
+        if "T" in self.state.name:
+            #self.canvas.create_line(
+            #    self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol / 2,
+            #    self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow,
+            #    self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol / 2,
+            #    self._dim["MARGIN_TB"] * 2 + self._dim["SIDE"] * self.state.staterow,
+            #    tags="prop", fill="black")
+            pass
+
+        else:
+            xl_0 = 0
+            xl_1 = self._dim["MARGIN_LR"]
+            xr_0 = self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol
+            xr_1 = self._dim["MARGIN_LR"] * 2 + self._dim["SIDE"] * self.state.statecol
+            y = self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow / 2
+
+            if (self._trailui.alpha_reflection is True and self.grid_info()[
+                "row"] < 3) or self._trailui.alpha_reflection is False:
+                if self.grid_info()["row"] < 3:  # Todo remove hardcoded value
+                    # arrow to state
+                    self.canvas.create_line(xl_0, y, xl_1, y,
+                                            tags="prop", fill="black", arrow=LAST)
+
+                    # line out of state
+                    self.canvas.create_line(xr_0, y, xr_1, y,
+                                            tags="prop", fill="black")
+            else:
+                # line in state
+                self.canvas.create_line(xl_0, y, xl_1, y,
+                                        tags="prop", fill="black")
+
+                # arrow out of self
+                self.canvas.create_line(xr_0, y, xr_1, y,
+                                        tags="prop", fill="black", arrow=FIRST)
 
     def __key_pressed(self, event):
         print event
 
     def __cell_clicked(self, event):
-        state_col = (event.x - self.__dim["MARGIN"]) // self.__dim["SIDE"]
-        state_row = (event.y - self.__dim["MARGIN"]) // self.__dim["SIDE"]
+        state_col = (event.x - self._dim["MARGIN_LR"]) // self._dim["SIDE"]
+        state_row = (event.y - self._dim["MARGIN_TB"]) // self._dim["SIDE"]
         oldstate = self.state.at(state_row, state_col)
-        state_probs = self.state.stateprobs[state_row * 4 + state_col]
+        state_probs = self.state.stateprobs[state_row * self.state.statecol + state_col]
         selected_cell = {"stateUI": self, "row": state_row, "col": state_col, "oldstate": oldstate,
                          "state_probs": state_probs}
 
-        if selected_cell in self.__trailui.selectedcells:
+        if selected_cell in self._trailui.selectedcells:
             # deselect cell if it is already selected
             self.deselect_cell(selected_cell)
-            self.remove_cell(selected_cell)
+            self.remove_cell_from_selectionlist(selected_cell)
         else:
             self.select_cell(selected_cell)
 
-        if self.__trailui.multiselection is False:
-            self.__trailui.open_cell_dialogue()
+        if self._trailui.multiselection is False:
+            self._trailui.open_cell_dialogue()
 
     def select_cell(self, selected_cell):
-        if 0 <= selected_cell["col"] < 4 and 0 <= selected_cell["row"] < 4:
+        if 0 <= selected_cell["col"] < self.state.statecol and 0 <= selected_cell["row"] < self.state.staterow:
             print "Cell ({},{}) = {}".format(selected_cell["row"], selected_cell["col"], selected_cell["oldstate"])
 
-        x = self.__dim["MARGIN"] + selected_cell["col"] * self.__dim["SIDE"]
-        y = self.__dim["MARGIN"] + selected_cell["row"] * self.__dim["SIDE"]
-        self.canvas.create_rectangle(x, y, x + self.__dim["SIDE"], y + self.__dim["SIDE"], fill='',
+        x = self._dim["MARGIN_LR"] + selected_cell["col"] * self._dim["SIDE"]
+        y = self._dim["MARGIN_TB"] + selected_cell["row"] * self._dim["SIDE"]
+        self.canvas.create_rectangle(x, y, x + self._dim["SIDE"], y + self._dim["SIDE"], fill='',
                                      outline="red",
                                      width=2.0, tags="statehighlight" + str(selected_cell["row"]) + "_" + str(
                 selected_cell["col"]))
 
-        self.__trailui.selectedcells.append(selected_cell)
+        self._trailui.selectedcells.append(selected_cell)
 
     def deselect_cell(self, selected_cell):
         self.canvas.delete("statehighlight" + str(selected_cell["row"]) + "_" + str(selected_cell["col"]))
 
-    def remove_cell(self, selected_cell):
-        self.__trailui.selectedcells.remove(selected_cell)
+    def remove_cell_from_selectionlist(self, selected_cell):
+        self._trailui.selectedcells.remove(selected_cell)
 
 
 class TrailUI:
-    def __init__(self, parent, trail=None):
+    def __init__(self, parent, trail=None, alpha_reflection=True):
         self.parent = parent
         self.trail = trail
+        self.alpha_reflection = alpha_reflection
         self.states = []
         self.probabilitylabels = {}
         self.trailframe = Frame(parent)
@@ -302,17 +357,26 @@ class TrailUI:
         for state in self.states:
             state.redraw_state()
 
+        for state in self.states:
+            state.redraw_propagation()
+
     def redraw_probablities(self):
-        for i, prob in enumerate(self.trail.probabilities):
-            overallprob, sboxprob, mixcolprob = prob.getProbability()
-            if i < self.trail.rounds:
-                self.probabilitylabels["S" + str(i)].textvar.set("2^{0:.2f}".format(math.log(sboxprob, 2)))
+        if self.alpha_reflection is True:
+            for i, prob in enumerate(self.trail.probabilities):
+                overallprob, sboxprob, mixcolprob = prob.getProbability()
+                if i < self.trail.rounds:
+                    self.probabilitylabels["S" + str(i)].textvar.set("2^{0:.2f}".format(math.log(sboxprob, 2)))
+                    self.probabilitylabels["M" + str(i + 1)].textvar.set("2^{0:.2f}".format(math.log(mixcolprob, 2)))
+                elif i >= self.trail.rounds + 1:
+                    self.probabilitylabels["S" + str(i + 2)].textvar.set("2^{0:.2f}".format(math.log(sboxprob, 2)))
+                    self.probabilitylabels["M" + str(i + 1)].textvar.set("2^{0:.2f}".format(math.log(mixcolprob, 2)))
+                else:  # inner round
+                    self.probabilitylabels["I"].textvar.set("2^{0:.2f}".format(math.log(overallprob, 2)))
+        else:
+            for i, prob in enumerate(self.trail.probabilities):
+                overallprob, sboxprob, mixcolprob = prob.getProbability()
+                self.probabilitylabels["S" + str(i + 1)].textvar.set("2^{0:.2f}".format(math.log(sboxprob, 2)))
                 self.probabilitylabels["M" + str(i + 1)].textvar.set("2^{0:.2f}".format(math.log(mixcolprob, 2)))
-            elif i >= self.trail.rounds + 1:
-                self.probabilitylabels["S" + str(i + 2)].textvar.set("2^{0:.2f}".format(math.log(sboxprob, 2)))
-                self.probabilitylabels["M" + str(i + 1)].textvar.set("2^{0:.2f}".format(math.log(mixcolprob, 2)))
-            else:  # inner round
-                self.probabilitylabels["I"].textvar.set("2^{0:.2f}".format(math.log(overallprob, 2)))
 
     def redrawColorList(self):
         self.canvas.delete("colorlist")
