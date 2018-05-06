@@ -237,6 +237,8 @@ class QarmaTrail(Trail.Trail):
         col += 1
         UI.StateUI(parentui, row, col, self.states["A" + str(self.rounds + 1) + "_i"])
 
+        parentui.maxgridcol = col
+
         col = 1
         row += 1
         for i in range(self.rounds + 1):

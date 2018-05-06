@@ -96,30 +96,31 @@ class DeoxysBCTrail(Trail.Trail):
 
     def _addProbability(self):
         self.probabilities = []
-        for i in range(1, self.rounds + 1):  # TODO: start at 0, just dummy input so far
-            if i == self.rounds:
-                print "we made it this far"
+        for i in range(1, self.rounds):
+            self.probabilities.append(Probability.RoundStepDeoxys(i,
+                                                                  self.states["A" + str(i)], self.states["T" + str(i)],
+                                                                  self.states["S" + str(i)], self.states["R" + str(i)],
+                                                                  self.states["M" + str(i)],
+                                                                  self.states["A" + str(i + 1)],
+                                                                  self.sboxDDT, M, p))
 
     def _addPropagation(self):
-        for i in range(1, self.rounds + 1):  # TODO: start at 0, just dummy input so far
+        for i in range(1, self.rounds + 1):
             self.propagations.append(Propagation.XORStep(self.states["A" + str(i)],
                                                          self.states["S" + str(i)],
                                                          self.states["T" + str(i)]))
-
-            self.propagations.append(Propagation.SBOXStep(self.states["S" + str(i)],
-                                                          self.states["R" + str(i)], self.sboxDDT, self.sboxDDT_I))
-
-            self.propagations.append(Propagation.ShiftRowsStep(self.states["R" + str(i)],
-                                                               self.states["M" + str(i)], p))
-
             if i < self.rounds:
+                self.propagations.append(Propagation.SBOXStep(self.states["S" + str(i)],
+                                                              self.states["R" + str(i)], self.sboxDDT, self.sboxDDT_I))
+
+                self.propagations.append(Propagation.ShiftRowsStep(self.states["R" + str(i)],
+                                                                   self.states["M" + str(i)], p))
+
                 self.propagations.append(
                     Propagation.MixColStepDeoxys(self.states["M" + str(i)], self.states["A" + str(i + 1)], M, M_I))
 
-            # TODO: add last AddTweakeyStep
-
         # tweakey update
-        # TODO: add if tweak is in input
+        # TODO: add tweakeyschedule
 
     def initUI(self, parentui):
         # tweak
@@ -134,27 +135,34 @@ class DeoxysBCTrail(Trail.Trail):
         col = 0
         row += 1
         for i in range(1, self.rounds + 1):
-            UI.StateUI(parentui, row, col, self.states["A" + str(i)])
-            col += 2
-            UI.StateUI(parentui, row, col, self.states["S" + str(i)])
-            col += 1
-            UI.StateUI(parentui, row, col, self.states["R" + str(i)])
-            col += 1
-            UI.StateUI(parentui, row, col, self.states["M" + str(i)])
-            col += 1
+            if i is self.rounds:
+                UI.StateUI(parentui, row, col, self.states["A" + str(i)])
+                col += 2
+                UI.StateUI(parentui, row, col, self.states["S" + str(i)])
+                col += 1
+            else:
+                UI.StateUI(parentui, row, col, self.states["A" + str(i)])
+                col += 2
+                UI.StateUI(parentui, row, col, self.states["S" + str(i)])
+                col += 1
+                UI.StateUI(parentui, row, col, self.states["R" + str(i)])
+                col += 1
+                UI.StateUI(parentui, row, col, self.states["M" + str(i)])
+                col += 1
 
-        col = 1
+        parentui.maxgridcol = col - 1
+
+        col = 2
         row += 1
         for i in range(1, self.rounds + 1):
             # sbox
-            col += 2
             v = StringVar()
             l = Label(parentui.trailframe, textvariable=v)
             l.textvar = v
             l.grid(fill=None, row=row, column=col, columnspan=2)
             parentui.probabilitylabels["S" + str(i)] = l
 
-            col += 1
+            col += 2
 
             # mixcol
             v = StringVar()
@@ -162,42 +170,30 @@ class DeoxysBCTrail(Trail.Trail):
             l.textvar = v
             l.grid(fill=None, row=row, column=col, columnspan=2)
             parentui.probabilitylabels["M" + str(i)] = l
-            col += 2
-
-        # TODO add last round (additional AddTweakey)
+            col += 3
 
     def getProbability(self, verbose=False):
         totalprob = 1.0
 
         # reset other stateprobs to 0, since they get recursivly calculated
         for state in self.states.values():
-            state.stateprobs = [[0.0] * 16 for _ in range(16)]
+            state.stateprobs = [[0.0] * 2 ** (self.statebitsize / self.statesize) for _ in range(self.statesize)]
 
-        # set the probability of the first state to a uniform distribution
-        first_state = "S1"
-        self.states[first_state].columnprobs = {}
-        for col in range(4):
-            self.states[first_state].columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)] = {}
-            total = len(self.states[first_state].at(0, col)) * len(self.states[first_state].at(1, col)) * len(
-                self.states[first_state].at(2, col)) * len(self.states[first_state].at(3, col))
-            for a, b, c, d in itertools.product(self.states[first_state].at(0, col),
-                                                self.states[first_state].at(1, col),
-                                                self.states[first_state].at(2, col),
-                                                self.states[first_state].at(3, col)):
-                self.states[first_state].columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)][(a, b, c, d)] = 1.0 / total
-        for i in range(16):
-            for poss in self.states[first_state].atI(i):
-                self.states[first_state].stateprobs[i][poss] = 1.0 / len(self.states[first_state].atI(i))
+        # normalize AddState
+        first_addstate = self.states["A1"]
+        for i in range(self.statesize):
+            for poss in first_addstate.atI(i):
+                first_addstate.stateprobs[i][poss] = 1.0 / len(first_addstate.atI(i))
 
+        # perform all prob calcs
         for prob in self.probabilities:
             totalprob *= prob.getProbability(verbose=verbose)[0]
 
         inputposs = 1
         outputposs = 1
-        # TODO
         for i in range(STATE_SIZE):
             inputposs *= len(self.states["A1"].atI(i))
-            outputposs *= len(self.states["A" + str(self.rounds)].atI(i))  # TODO: add +1
+            outputposs *= len(self.states["A" + str(self.rounds)].atI(i))
 
         print "inputposs : 2**{}".format(math.log(inputposs, 2))
         print "outputposs: 2**{}".format(math.log(outputposs, 2))
@@ -213,61 +209,61 @@ class DeoxysBCTrail(Trail.Trail):
     def exportToLatex(self, filehandle):
         output = []
         output.append(r"""
-    \documentclass[a4paper,landscape,11pt]{article}
-
-    \usepackage[margin=.5in]{geometry}
-    \usepackage{amsmath}
-    \usepackage{xcolor}
-    \usepackage{tikz}
-    \usetikzlibrary{calc}
-    \usetikzlibrary{arrows.meta}
-    """)
+        \documentclass[a4paper,landscape,11pt]{article}
+    
+        \usepackage[margin=.5in]{geometry}
+        \usepackage{amsmath}
+        \usepackage{xcolor}
+        \usepackage{tikz}
+        \usetikzlibrary{calc}
+        \usetikzlibrary{arrows.meta}
+        """)
         for color, hexcode in COLORS.items():
             output.append("\definecolor{solarized" + color + "}{HTML}{" + hexcode[1:] + "}")
 
         output.append(r"""
-    \colorlet{raster}{black}
-
-    \pgfmathsetmacro\hi{5}
-    \pgfmathsetmacro\lo{-5}
-    \pgfmathsetmacro{\xmax}{4}
-    \pgfmathsetmacro{\ymax}{4}
-    \pgfmathsetmacro{\xmaxm}{int(\xmax-1)}
-    \pgfmathsetmacro{\ymaxm}{int(\ymax-1)}
-
-    \tikzset{next/.style={->,>=latex}}
-    \newcommand{\drawstate}[4][]{
-        \begin{scope}[#1]
-          \foreach \row/\col/\colour in {#4} {\fill[\colour] (\col,-\row) rectangle ++(1,-1);}
-          \foreach \x in {1,...,\xmaxm} \draw[raster] (\x,0) -- ++(0,-\ymax); 
-          \foreach \y in {1,...,\ymaxm} \draw[raster] (0,-\y) -- ++(\xmax,0); 
-          \draw (0,0) rectangle (\xmax,-\ymax);
-          \coordinate (#2_west) at (0,-2);
-          \coordinate (#2_east) at (\xmax,-2);
-          \coordinate (#2_south) at (2,-\ymax);
-          \coordinate (#2_north) at (2,0);
-          %\node[above] at (2,0) {#3};
-        \end{scope}
-    }
-    \newcommand{\drawxor}[2][]{
-        \begin{scope}[#1]
-          \draw[thin] (2,-2) circle (2ex)
-                       +(-2ex,0) coordinate[name=#2_west] -- +(2ex,0) coordinate[name=#2_east]
-                       +(0,-2ex) coordinate[name=#2_south] -- +(0,2ex) coordinate[name=#2_north];
-        \end{scope}
-    }
-
-    \newcommand{\SB}{\textsf{S}}
-    \newcommand{\SR}{\textsf{P}}
-    \newcommand{\MC}{\textsf{M}}
-    \newcommand{\AC}{\textsf{+}}
-
-    \begin{document}
-    \pagestyle{empty}
-
-    \begin{figure}[p]
-    \centering
-    """)
+        \colorlet{raster}{black}
+    
+        \pgfmathsetmacro\hi{5}
+        \pgfmathsetmacro\lo{-5}
+        \pgfmathsetmacro{\xmax}{4}
+        \pgfmathsetmacro{\ymax}{4}
+        \pgfmathsetmacro{\xmaxm}{int(\xmax-1)}
+        \pgfmathsetmacro{\ymaxm}{int(\ymax-1)}
+    
+        \tikzset{next/.style={->,>=latex}}
+        \newcommand{\drawstate}[4][]{
+            \begin{scope}[#1]
+              \foreach \row/\col/\colour in {#4} {\fill[\colour] (\col,-\row) rectangle ++(1,-1);}
+              \foreach \x in {1,...,\xmaxm} \draw[raster] (\x,0) -- ++(0,-\ymax); 
+              \foreach \y in {1,...,\ymaxm} \draw[raster] (0,-\y) -- ++(\xmax,0); 
+              \draw (0,0) rectangle (\xmax,-\ymax);
+              \coordinate (#2_west) at (0,-2);
+              \coordinate (#2_east) at (\xmax,-2);
+              \coordinate (#2_south) at (2,-\ymax);
+              \coordinate (#2_north) at (2,0);
+              %\node[above] at (2,0) {#3};
+            \end{scope}
+        }
+        \newcommand{\drawxor}[2][]{
+            \begin{scope}[#1]
+              \draw[thin] (2,-2) circle (2ex)
+                           +(-2ex,0) coordinate[name=#2_west] -- +(2ex,0) coordinate[name=#2_east]
+                           +(0,-2ex) coordinate[name=#2_south] -- +(0,2ex) coordinate[name=#2_north];
+            \end{scope}
+        }
+    
+        \newcommand{\SB}{\textsf{S}}
+        \newcommand{\SR}{\textsf{P}}
+        \newcommand{\MC}{\textsf{M}}
+        \newcommand{\AC}{\textsf{+}}
+    
+        \begin{document}
+        \pagestyle{empty}
+    
+        \begin{figure}[p]
+        \centering
+        """)
         hi = r"\hi"
         lo = r"\lo"
         tin = "I"  # r"{\text{in}}"
@@ -432,10 +428,10 @@ class DeoxysBCTrail(Trail.Trail):
                     x) + "," + str(y) + r") {};")
 
         output.append(r"""\end{tikzpicture}
-    \end{figure}
-
-    \end{document}
-    """)
+        \end{figure}
+    
+        \end{document}
+        """)
         output = "\n".join(output)
 
         filehandle.write(output)

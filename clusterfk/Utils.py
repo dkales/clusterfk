@@ -32,7 +32,7 @@ json_schema = {
             "enum": [
                 "Mantis",
                 "Qarma",
-                "Deoxys"
+                "DeoxysBC"
             ]
         },
         "rounds": {
@@ -55,7 +55,6 @@ json_schema = {
                                 "items": {
                                     "type": "integer",
                                     "minimum": 0,
-                                    "maximum": 15
                                 },
                                 "minItems": 1,
                                 "maxItems": 16,

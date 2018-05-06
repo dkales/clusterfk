@@ -181,7 +181,7 @@ class StateUI(Frame):
             self.canvas.create_text(self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.staterow / 2,
                                     self._dim["MARGIN_TB"] / 2,
                                     tags="state", text=str.replace(self.state.name, "_", ""))
-                                    # font=tkFont.Font(size=self._dim["MARGIN_TB"] - 2))
+            # font=tkFont.Font(size=self._dim["MARGIN_TB"] - 2))
 
     def redraw_propagation(self):
         # TODO enhance
@@ -204,33 +204,33 @@ class StateUI(Frame):
             y = self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow / 2
 
             if self._trailui.alpha_reflection is True:
-                if 0 < self._col:
-                    if self._row < self._parent.grid_size()[1] - 2:  # Todo remove hardcoded value
+                if self._row < self._parent.grid_size()[1] - 2:  # Todo remove hardcoded value
+                    if self._col > 0:
                         # arrow to state
                         self.canvas.create_line(xl_0, y, xl_1, y,
                                                 tags="prop", fill="black", arrow=LAST, arrowshape=(5, 9, 3))
+                    # line out of state
+                    self.canvas.create_line(xr_0, y, xr_1, y,
+                                            tags="prop", fill="black")
 
+                    # prop name
+                    self.canvas.create_text(xr_0 + self._dim["MARGIN_LR"] / 2 + 1,
+                                            y - self._dim["MARGIN_TB"] / 2 - 1,
+                                            tags="prop", text=self.state.name[:1])
+                else:
+                    if self._col > 0:
                         # line out of state
-                        self.canvas.create_line(xr_0, y, xr_1, y,
-                                                tags="prop", fill="black")
-
-                        # prop name
-                        self.canvas.create_text(xr_0 + self._dim["MARGIN_LR"] / 2 + 1,
-                                                y - self._dim["MARGIN_TB"] / 2 - 1,
-                                                tags="prop", text=self.state.name[:1])
-                    else:
-                        # line in state
                         self.canvas.create_line(xl_0, y, xl_1, y,
                                                 tags="prop", fill="black")
-
-                        # arrow out of self
-                        self.canvas.create_line(xr_0, y, xr_1, y,
-                                                tags="prop", fill="black", arrow=FIRST, arrowshape=(5, 8, 3))
 
                         # prop name
                         prop_name = self._trailui.get_stateui_at(self._row, self._col - 1).state.name
                         self.canvas.create_text(self._dim["MARGIN_LR"] / 2, y - self._dim["MARGIN_TB"] / 2 - 1,
                                                 tags="prop", text=prop_name[:1])
+
+                    # arrow in state
+                    self.canvas.create_line(xr_0, y, xr_1, y,
+                                            tags="prop", fill="black", arrow=FIRST, arrowshape=(5, 8, 3))
 
             else:
                 if self._col > 0:
@@ -238,7 +238,7 @@ class StateUI(Frame):
                     self.canvas.create_line(xl_0, y, xl_1, y,
                                             tags="prop", fill="black", arrow=LAST, arrowshape=(5, 9, 3))
                 hi = self._parent.grid_size()
-                if 0 <= self._col < self._parent.grid_size()[0] - 2:
+                if 0 <= self._col < self._trailui.maxgridcol:
                     # line out of state
                     self.canvas.create_line(xr_0, y, xr_1, y,
                                             tags="prop", fill="black")
@@ -308,6 +308,7 @@ class TrailUI:
         self.parent.title("ClusterF**k")
         self.enable_propagation = True
         self.trail.updateColorList()
+        self.maxgridcol = -1
         self.trail.initUI(self)
 
         # Multi Cell Selection
@@ -481,10 +482,9 @@ class ClusterFK:
         if f is None:
             return
 
-        # TODO: check against json schema
         # load JSON data as string, not unicode string
         imported_trail = _byteify(json.load(f, object_hook=_byteify), ignore_dicts=True)
-
+        validate(imported_trail, Utils.json_schema)
         f.close()
 
         trail = CIPHER_TRAILS[imported_trail["cipher"]](imported_trail["rounds"], jsontrail=imported_trail)

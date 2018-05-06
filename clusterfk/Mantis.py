@@ -233,6 +233,8 @@ class MantisTrail(Trail.Trail):
         # inner round backwards
         UI.StateUI(parentui, row, col, self.states["a" + str(self.rounds + 1)])
 
+        parentui.maxgridcol = col
+
         col = 1
         row += 1
         for i in range(self.rounds + 1):

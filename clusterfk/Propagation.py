@@ -151,7 +151,6 @@ class SBOXStep(PropagationStep):
         self.inchanged = False
         self.outchanged = False
 
-        # TODO check SBOX bytes
         for i in range(self.statesize):
             outposs = self._getDDTState(self.instate.atI(i))
             inposs = self._getDDTState_I(self.outstate.atI(i))

@@ -10,24 +10,25 @@ def prod(factors):
 
 
 class ProbabilityStep:
-    def __init__(self, staterow, statecol):
+    def __init__(self, staterow, statecol, statebitsize):
         self.staterow = staterow
         self.statecol = statecol
         self.statesize = staterow * statecol
+        self.statebitsize = statebitsize
 
     def getProbability(self, verbose=False):
         raise NotImplementedError("Subclasses need to implement this")
 
     def AddTweakeyProbability(self, instate, outstate, tweak):
-        # TODO: add Qarma-LFSR in any way?
         for i in range(self.statesize):
             assert len(tweak.atI(i)) == 1
             t = Utils.first(tweak.atI(i))
             if t != 0:
                 outstate.stateprobs[i] = [instate.stateprobs[i][x ^ t] for x in
-                                          range(self.statesize)]
+                                          range(2 ** (self.statebitsize / self.statesize))]
             else:
-                outstate.stateprobs[i] = [instate.stateprobs[i][x] for x in range(self.statesize)]
+                outstate.stateprobs[i] = [instate.stateprobs[i][x] for x in
+                                          range(2 ** (self.statebitsize / self.statesize))]
 
     def PermuteProbs(self, instate, outstate, P):
         for i in range(self.statesize):
@@ -40,7 +41,7 @@ class ProbabilityStep:
     def SBOXProbability(self, instate, outstate, ddt):
         overall_prob = 1.0
 
-        #TODO: replace with SBOXProbColumnProbs everywhere
+        # TODO: replace with SBOXProbColumnProbs everywhere
         for i in range(self.statesize):
             sboxprob = 0.0
             for x in instate.atI(i):
@@ -98,14 +99,14 @@ class ProbabilityStep:
                     result = (b ^ c ^ d, a ^ c ^ d, a ^ b ^ d, a ^ b ^ c)
                 else:
                     result = (
-                        Utils.rotl_bitwise(b, M[0][1]) ^ Utils.rotl_bitwise(c, M[0][2]) ^ Utils.rotl_bitwise(d,
-                                                                                                             M[0][3]),
-                        Utils.rotl_bitwise(a, M[1][0]) ^ Utils.rotl_bitwise(c, M[1][2]) ^ Utils.rotl_bitwise(d,
-                                                                                                             M[1][3]),
-                        Utils.rotl_bitwise(a, M[2][0]) ^ Utils.rotl_bitwise(b, M[2][1]) ^ Utils.rotl_bitwise(d,
-                                                                                                             M[2][3]),
-                        Utils.rotl_bitwise(a, M[3][0]) ^ Utils.rotl_bitwise(b, M[3][1]) ^ Utils.rotl_bitwise(c,
-                                                                                                             M[3][2]))
+                        Utils.rotl_bitwise(b, M[0][1]) ^ Utils.rotl_bitwise(c, M[0][2]) ^
+                        Utils.rotl_bitwise(d, M[0][3]),
+                        Utils.rotl_bitwise(a, M[1][0]) ^ Utils.rotl_bitwise(c, M[1][2]) ^
+                        Utils.rotl_bitwise(d, M[1][3]),
+                        Utils.rotl_bitwise(a, M[2][0]) ^ Utils.rotl_bitwise(b, M[2][1]) ^
+                        Utils.rotl_bitwise(d, M[2][3]),
+                        Utils.rotl_bitwise(a, M[3][0]) ^ Utils.rotl_bitwise(b, M[3][1]) ^
+                        Utils.rotl_bitwise(c, M[3][2]))
 
                 if result in outset:
                     colprob += prob
@@ -184,16 +185,17 @@ class ProbabilityStep:
 
         return overall_prob
 
-
     def ShiftRowsStep(self, instate, outstate, p):
         for row in range(self.staterow):
-            inrow = Utils.rotl_list([instate.stateprobs[row, col] for col in range(self.statecol)])
+            inrow = Utils.rotl_list([instate.stateprobs[row * self.statecol + col] for col in range(self.statecol)],
+                                    p[row])
             for col in range(self.statecol):
-                outstate.stateprobs[row, col] = inrow[col]
+                outstate.stateprobs[row * self.statecol + col] = inrow[col]
+
 
 class RoundStepDeoxys(ProbabilityStep):
     def __init__(self, round, addstate, tweak, sboxstate, shiftrowsstate, mixcolstate, outstate, sboxDDT, M, p):
-        ProbabilityStep.__init__(self, sboxstate.staterow, sboxstate.statecol)
+        ProbabilityStep.__init__(self, sboxstate.staterow, sboxstate.statecol, sboxstate.statebitsize)
         self.round = round
         self.addstate = addstate
         self.tweak = tweak
@@ -208,20 +210,34 @@ class RoundStepDeoxys(ProbabilityStep):
     def getProbability(self, verbose=False):
         overall_prob = 1.0
 
-        # normalize addstate
-        self.NormalizeStateProbs(self.addstate)
-
         # add tweakey step
         self.AddTweakeyProbability(self.addstate, self.sboxstate, self.tweak)
 
-        # sbox step
+        # sbox step - uniform distribution + column probs
+        self.sboxstate.columnprobs = {}
+        for col in range(self.statecol):
+            self.sboxstate.columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)] = {}
+            total = len(self.sboxstate.at(0, col)) * len(self.sboxstate.at(1, col)) * len(
+                self.sboxstate.at(2, col)) * len(self.sboxstate.at(3, col))
+            for a, b, c, d in itertools.product(self.sboxstate.at(0, col),
+                                                self.sboxstate.at(1, col),
+                                                self.sboxstate.at(2, col),
+                                                self.sboxstate.at(3, col)):
+                self.sboxstate.columnprobs[(0 + col, 4 + col, 8 + col, 12 + col)][(a, b, c, d)] = 1.0 / total
+        for i in range(self.statesize):
+            for poss in self.sboxstate.atI(i):
+                self.sboxstate.stateprobs[i][poss] = 1.0 / len(self.sboxstate.atI(i))
+
         sboxprob = self.SBOXProbabilityForColumnProbs(self.sboxstate, self.shiftrowstate, self.ddt)
+
+        # normalize shiftrows
+        self.NormalizeStateProbs(self.shiftrowstate)
 
         # shift rows step
         self.ShiftRowsStep(self.shiftrowstate, self.mixcolstate, self.p)
 
         # mixcol
-        mixcolprob = self.MixColProbability(self.mixcolstate, self.outstate)
+        mixcolprob = self.MixColDeoxysProbability(self.mixcolstate, self.outstate, self.M)
 
         # normalize outstate
         self.NormalizeStateProbs(self.outstate)
@@ -235,7 +251,7 @@ class RoundStepDeoxys(ProbabilityStep):
 
 class FullroundStepMantis(ProbabilityStep):
     def __init__(self, round, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sboxDDT, P):
-        ProbabilityStep.__init__(self, permstate.staterow, permstate.statecol)
+        ProbabilityStep.__init__(self, permstate.staterow, permstate.statecol, permstate.statebitsize)
         self.round = round
         self.sboxstate = sboxstate
         self.sboxstate2 = sboxstate2
@@ -276,7 +292,7 @@ class FullroundStepMantis(ProbabilityStep):
 
 class InnerRoundStepMantis(ProbabilityStep):
     def __init__(self, sboxstatein, mixcolstatein, mixcolstateout, sboxstateout, sboxDDT):
-        ProbabilityStep.__init__(self, mixcolstatein.staterow, mixcolstatein.statecol)
+        ProbabilityStep.__init__(self, mixcolstatein.staterow, mixcolstatein.statecol, mixcolstatein.statebitsize)
         self.sboxstatein = sboxstatein
         self.sboxstateout = sboxstateout
         self.mixcolstatein = mixcolstatein
@@ -328,7 +344,7 @@ class InnerRoundStepMantis(ProbabilityStep):
 
 class FullroundInverseStepMantis(ProbabilityStep):
     def __init__(self, round, sboxstate, mixcolstate, permstate, addstate, tweak, sboxstate2, sboxDDT, P):
-        ProbabilityStep.__init__(self, mixcolstate.staterow, mixcolstate.statecol)
+        ProbabilityStep.__init__(self, mixcolstate.staterow, mixcolstate.statecol, mixcolstate.statebitsize)
         self.round = round
         self.sboxstate = sboxstate
         self.sboxstate2 = sboxstate2
@@ -384,7 +400,7 @@ class FullroundInverseStepMantis(ProbabilityStep):
 class FullroundStepQarma(ProbabilityStep):
     def __init__(self, round, sboxstate, addstate, tweak, permstate, mixcolstate, sboxstate2, sboxDDT,
                  P, M):
-        ProbabilityStep.__init__(self, addstate.staterow, addstate.statecol)
+        ProbabilityStep.__init__(self, addstate.staterow, addstate.statecol, addstate.statebitsize)
         self.round = round
         self.sboxstate = sboxstate
         self.sboxstate2 = sboxstate2
@@ -427,7 +443,7 @@ class FullroundStepQarma(ProbabilityStep):
 class InnerRoundStepQarma(ProbabilityStep):
     def __init__(self, sboxstatein, permstatein, mixcolstatein, mixcolstateout, permstateout, sboxstateout, sboxDDT, P,
                  M):
-        ProbabilityStep.__init__(self, permstatein.staterow, permstatein.statecol)
+        ProbabilityStep.__init__(self, permstatein.staterow, permstatein.statecol, permstatein.statebitsize)
         self.sboxstatein = sboxstatein
         self.sboxstateout = sboxstateout
         self.permstatein = permstatein
@@ -465,7 +481,7 @@ class InnerRoundStepQarma(ProbabilityStep):
 class FullroundInverseStepQarma(ProbabilityStep):
     def __init__(self, round, sboxstate, mixcolstate, permstate, addstate, tweak, sboxstate2, sboxDDT,
                  P, M):
-        ProbabilityStep.__init__(self, mixcolstate.staterow, mixcolstate.statecol)
+        ProbabilityStep.__init__(self, mixcolstate.staterow, mixcolstate.statecol, mixcolstate.statebitsize)
         self.round = round
         self.sboxstate = sboxstate
         self.sboxstate2 = sboxstate2
