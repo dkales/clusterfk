@@ -21,7 +21,6 @@ SIDE = 12  # Width of every state cell.
 PRINT_NAMES = True
 PRINT_PROPS = True
 
-# TODO put this elsewhere?
 CIPHER_TRAILS = {
     "Mantis": Mantis.MantisTrail,
     "Qarma": Qarma.QarmaTrail,
@@ -31,7 +30,8 @@ CIPHER_TRAILS = {
 
 class StatePopup(object):
     def __init__(self, master, default_value, state_probs):
-        top = self.top = Toplevel(master)
+        top = self.top = Toplevel(master.canvas)
+        self.master = master
         self.l = Label(top, text="New State")
         self.l.pack()
         self.e = Entry(top)
@@ -54,8 +54,8 @@ class StatePopup(object):
         self.top.bind("<Escape>", lambda x: self.close())
         self.value = None
         self.top.wait_visibility()
-        self.top.grab_set()
         # stop interaction in other gui
+        self.top.grab_set()
 
     def select_all(event):
         event.e.select_range(0, 'end')
@@ -66,20 +66,21 @@ class StatePopup(object):
     def check_cleanup(self):
         newstate = self.e.get()
         if newstate == "":
-            self.value = range(16)
+            self.value = range(1, self.master.trail.statebitsize)
         elif newstate == "*":
-            self.value = range(1, 16)
+            self.value = range(1, self.master.trail.statebitsize)
         else:
             try:
                 state = []
                 for x in newstate.split(","):
                     x = x.strip()
-                    assert len(x) == 1
-                    state.append(int(x, 16))
+                    x = int(x, 16)
+                    assert x < 2 ** (self.master.trail.statebitsize / self.master.trail.statesize)
+                    state.append(x)
                 assert len(state) > 0
                 self.value = state
             except Exception as e:
-                print e
+                print "Exception: " + str(e)
                 self.value = None
                 return
 
@@ -251,24 +252,60 @@ class StateUI(Frame):
         print event
 
     def __cell_clicked(self, event):
+        # clear old selection
+        if self._trailui.multiselection_pressed is False and self._trailui.dynamicselection_pressed is False:
+            self._trailui._clear_selection()
+
+        cells_to_select = list()
+
+        # get data of newly selected cell
         state_col = (event.x - self._dim["MARGIN_LR"]) // self._dim["SIDE"]
         state_row = (event.y - self._dim["MARGIN_TB"]) // self._dim["SIDE"]
         oldstate = self.state.at(state_row, state_col)
         state_probs = self.state.stateprobs[state_row * self.state.statecol + state_col]
         selected_cell = {"stateUI": self, "row": state_row, "col": state_col, "oldstate": oldstate,
                          "state_probs": state_probs}
+        cells_to_select.append(selected_cell)
 
-        if selected_cell in self._trailui.selectedcells:
-            # deselect cell if it is already selected
-            self.deselect_cell(selected_cell)
-            self.remove_cell_from_selectionlist(selected_cell)
-        else:
-            self.select_cell(selected_cell)
+        # if Shift is pressed do dynamic selection
+        if self._trailui.dynamicselection_pressed is True and \
+                len(self._trailui.selectedcells) > 0 and self._trailui.selectedcells[-1]["stateUI"] is self:
 
-        if self._trailui.multiselection is False:
+            last_pressed = self._trailui.selectedcells[-1]
+
+            # get row-col pairs in columnwise order
+            cells = [(row, col) for col in range(self.state.statecol) for row in range(self.state.staterow)]
+
+            # add cells inbetween to selection
+            start_i = cells.index((last_pressed["row"], last_pressed["col"])) + 1
+            end_i = cells.index((state_row, state_col))
+
+            # enable reverse Shift-select as well
+            if start_i > end_i:
+                start_i, end_i = end_i, start_i
+
+            for cell in cells[start_i:end_i]:
+                oldstate = self.state.atI(cell[0] * self.state.statecol + cell[1])
+                state_probs = self.state.stateprobs[cell[0] * self.state.statecol + cell[1]]
+                selected_cell = {"stateUI": self, "row": cell[0], "col": cell[1], "oldstate": oldstate,
+                                 "state_probs": state_probs}
+                cells_to_select.append(selected_cell)
+
+        # select all cells
+        for cell in cells_to_select:
+            if selected_cell in self._trailui.selectedcells and self._trailui.dynamicselection_pressed is False:
+                # deselect cell if it is already selected and dynamic mode is off
+                self.deselect_cell(cell)
+            else:
+                self.select_cell(cell)
+
+        # if no form of multi selection - open editor
+        if self._trailui.multiselection_pressed is False and self._trailui.dynamicselection_pressed is False:
             self._trailui.open_cell_dialogue()
 
-    def select_cell(self, selected_cell):
+    def draw_selection(self, selected_cell):
+        self.undraw_selection(selected_cell)
+
         if 0 <= selected_cell["col"] < self.state.statecol and 0 <= selected_cell["row"] < self.state.staterow:
             print "Cell ({},{}) = {}".format(selected_cell["row"], selected_cell["col"], selected_cell["oldstate"])
 
@@ -279,12 +316,15 @@ class StateUI(Frame):
                                      width=2.0, tags="statehighlight" + str(selected_cell["row"]) + "_" + str(
                 selected_cell["col"]))
 
+    def undraw_selection(self, selected_cell):
+        self.canvas.delete("statehighlight" + str(selected_cell["row"]) + "_" + str(selected_cell["col"]))
+
+    def select_cell(self, selected_cell):
+        self.draw_selection(selected_cell)
         self._trailui.selectedcells.append(selected_cell)
 
     def deselect_cell(self, selected_cell):
-        self.canvas.delete("statehighlight" + str(selected_cell["row"]) + "_" + str(selected_cell["col"]))
-
-    def remove_cell_from_selectionlist(self, selected_cell):
+        self.undraw_selection(selected_cell)
         self._trailui.selectedcells.remove(selected_cell)
 
 
@@ -312,19 +352,32 @@ class TrailUI:
         self.trail.initUI(self)
 
         # Multi Cell Selection
-        self.multiselection = False
+        self.multiselection_pressed = False
+        self.dynamicselection_pressed = False
         self.selectedcells = []
         self.parent.bind("<Control_L>", self.__selection_start)
         self.parent.bind("<KeyRelease-Control_L>", self.__selection_end)
+        self.parent.bind("<Shift_L>", self.__dynamic_selection_start)
+        self.parent.bind("<KeyRelease-Shift_L>", self.__dynamic_selection_end)
+
+        self.parent.bind("<Escape>", lambda event: self._clear_selection())
+        self.parent.bind("<Return>", lambda event: self.open_cell_dialogue())
 
     def __selection_start(self, event):
-        print "Selection started"
-        self.multiselection = True
+        print "Selection start/continue"
+        self.multiselection_pressed = True
+
+    def __dynamic_selection_start(self, event):
+        print "Dynamic selection start"
+        self.dynamicselection_pressed = True
 
     def __selection_end(self, event):
-        print "Selection ended"
-        self.multiselection = False
-        self.open_cell_dialogue()
+        print "Selection end"
+        self.multiselection_pressed = False
+
+    def __dynamic_selection_end(self, event):
+        print "Dynamic selection end"
+        self.dynamicselection_pressed = False
 
     def open_cell_dialogue(self):
         if len(self.selectedcells) is 0:
@@ -334,7 +387,7 @@ class TrailUI:
         # oldstatestr = ",".join(["{:x}".format(x) for x in oldstate])
         oldstatestr = ""
 
-        dialog = StatePopup(self.canvas, oldstatestr,
+        dialog = StatePopup(self, oldstatestr,
                             self.selectedcells[0]["state_probs"])  # TODO add probs
 
         self.trailframe.wait_window(dialog.top)
@@ -345,12 +398,13 @@ class TrailUI:
             for i, cell in enumerate(self.selectedcells):
                 cell["stateUI"].state.set(cell["row"], cell["col"], set(newstate))
 
-        self._clear_selection()
+        # self._clear_selection()
         self.redraw_all()
+        self.redraw_selection()
 
     def _clear_selection(self):
-        for i, cell in enumerate(self.selectedcells):
-            cell["stateUI"].deselect_cell(cell)
+        for cell in self.selectedcells:
+            cell["stateUI"].undraw_selection(cell)
 
         self.selectedcells = []
 
@@ -373,6 +427,10 @@ class TrailUI:
                 return state
 
         return self.get_stateui_at(row, col - 1)
+
+    def redraw_selection(self):
+        for cell in self.selectedcells:
+            cell["stateUI"].draw_selection(cell)
 
     def redraw_all(self):
         if self.enable_propagation:
