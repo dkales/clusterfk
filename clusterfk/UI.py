@@ -1,14 +1,13 @@
 import Tkinter
-import unicodedata
-from Tkinter import Tk, Canvas, Frame, Button, Entry, Toplevel, Label, Menu, Checkbutton, BooleanVar
-from Tkinter import BOTH, TOP, BOTTOM, LEFT, RIGHT, LAST, FIRST
+import tkFont
+from Tkinter import Tk, Canvas, Frame, Button, Entry, Toplevel, Label, Menu
+from Tkinter import N, E, S, W, BOTH, TOP, BOTTOM, LEFT, RIGHT, LAST, FIRST
 import tkFileDialog
 import math
 import json
-from json import dumps, loads, JSONEncoder, JSONDecoder
 from jsonschema import validate
-import yaml
 
+# intern
 from clusterfk import Utils, DeoxysBC, Mantis, Qarma
 
 try:
@@ -19,6 +18,8 @@ except Exception:
 MARGIN_LR = 10  # Pixels left and right of the board (x)
 MARGIN_TB = 12  # Pixels above and below board (y)
 SIDE = 12  # Width of every state cell.
+PRINT_NAMES = True
+PRINT_PROPS = True
 
 # TODO put this elsewhere?
 CIPHER_TRAILS = {
@@ -90,7 +91,7 @@ class StatePopup(object):
 
 
 class StateUI(Frame):
-    def __init__(self, trailui, row, col, state, scale=1, gridopts={}):
+    def __init__(self, trailui, row, col, state, scale=1, gridopts=None):
         self.state = state
         self._row = row
         self._col = col
@@ -112,7 +113,10 @@ class StateUI(Frame):
         self._dim["WIDTH"] = self._dim["SIDE"] * self.state.staterow + self._dim["MARGIN_LR"] * 2
         self._dim["HEIGHT"] = self._dim["SIDE"] * self.state.statecol + self._dim["MARGIN_TB"] * 2
 
-    def __initUI(self, gridopts):
+    def __initUI(self, gridopts=None):
+        if gridopts is None:
+            gridopts = {}
+
         self.grid(fill=None, row=self._row, column=self._col, **gridopts)
         self.canvas = Canvas(self,
                              width=self._dim["WIDTH"],
@@ -173,26 +177,18 @@ class StateUI(Frame):
                                             tags="state", fill="black")
 
         # print name
-        if "T" in self.state.name:
-            if self._trailui.alpha_reflection is True:
-                self.canvas.create_text(self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.staterow / 2,
-                                        self._dim["MARGIN_TB"] / 2,
-                                        text=self.state.name)
-            else:
-                self.canvas.create_text(self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.staterow / 2,
-                                        self._dim["MARGIN_TB"] / 2,
-                                        text=self.state.name)
-        else:
+        if PRINT_NAMES:
             self.canvas.create_text(self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.staterow / 2,
                                     self._dim["MARGIN_TB"] / 2,
-                                    text=self.state.name)
+                                    tags="state", text=str.replace(self.state.name, "_", ""))
+                                    # font=tkFont.Font(size=self._dim["MARGIN_TB"] - 2))
 
     def redraw_propagation(self):
-        #TODO enhance
+        # TODO enhance
         self.canvas.delete("prop")
 
         if "T" in self.state.name:
-            #self.canvas.create_line(
+            # self.canvas.create_line(
             #    self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol / 2,
             #    self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow,
             #    self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol / 2,
@@ -207,24 +203,49 @@ class StateUI(Frame):
             xr_1 = self._dim["MARGIN_LR"] * 2 + self._dim["SIDE"] * self.state.statecol
             y = self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow / 2
 
-            if (self._trailui.alpha_reflection is True and self.grid_info()[
-                "row"] < 3) or self._trailui.alpha_reflection is False:
-                if self.grid_info()["row"] < 3:  # Todo remove hardcoded value
+            if self._trailui.alpha_reflection is True:
+                if 0 < self._col:
+                    if self._row < self._parent.grid_size()[1] - 2:  # Todo remove hardcoded value
+                        # arrow to state
+                        self.canvas.create_line(xl_0, y, xl_1, y,
+                                                tags="prop", fill="black", arrow=LAST, arrowshape=(5, 9, 3))
+
+                        # line out of state
+                        self.canvas.create_line(xr_0, y, xr_1, y,
+                                                tags="prop", fill="black")
+
+                        # prop name
+                        self.canvas.create_text(xr_0 + self._dim["MARGIN_LR"] / 2 + 1,
+                                                y - self._dim["MARGIN_TB"] / 2 - 1,
+                                                tags="prop", text=self.state.name[:1])
+                    else:
+                        # line in state
+                        self.canvas.create_line(xl_0, y, xl_1, y,
+                                                tags="prop", fill="black")
+
+                        # arrow out of self
+                        self.canvas.create_line(xr_0, y, xr_1, y,
+                                                tags="prop", fill="black", arrow=FIRST, arrowshape=(5, 8, 3))
+
+                        # prop name
+                        prop_name = self._trailui.get_stateui_at(self._row, self._col - 1).state.name
+                        self.canvas.create_text(self._dim["MARGIN_LR"] / 2, y - self._dim["MARGIN_TB"] / 2 - 1,
+                                                tags="prop", text=prop_name[:1])
+
+            else:
+                if self._col > 0:
                     # arrow to state
                     self.canvas.create_line(xl_0, y, xl_1, y,
-                                            tags="prop", fill="black", arrow=LAST)
-
+                                            tags="prop", fill="black", arrow=LAST, arrowshape=(5, 9, 3))
+                hi = self._parent.grid_size()
+                if 0 <= self._col < self._parent.grid_size()[0] - 2:
                     # line out of state
                     self.canvas.create_line(xr_0, y, xr_1, y,
                                             tags="prop", fill="black")
-            else:
-                # line in state
-                self.canvas.create_line(xl_0, y, xl_1, y,
-                                        tags="prop", fill="black")
 
-                # arrow out of self
-                self.canvas.create_line(xr_0, y, xr_1, y,
-                                        tags="prop", fill="black", arrow=FIRST)
+                    # prop name
+                    self.canvas.create_text(xr_0 + self._dim["MARGIN_LR"] / 2 + 1, y - self._dim["MARGIN_TB"] / 2 - 1,
+                                            tags="prop", text=self.state.name[:1])
 
     def __key_pressed(self, event):
         print event
@@ -268,10 +289,10 @@ class StateUI(Frame):
 
 
 class TrailUI:
-    def __init__(self, parent, trail=None, alpha_reflection=True):
+    def __init__(self, parent, trail=None):
         self.parent = parent
         self.trail = trail
-        self.alpha_reflection = alpha_reflection
+        self.alpha_reflection = trail.alpha_reflection
         self.states = []
         self.probabilitylabels = {}
         self.trailframe = Frame(parent)
@@ -344,6 +365,14 @@ class TrailUI:
         self.trail.makeActiveOnly()
         self.redraw_all()
 
+    def get_stateui_at(self, row, col):
+        # retrieve state from specific grid position
+        for state in self.states:
+            if state._row is row and state._col is col:
+                return state
+
+        return self.get_stateui_at(row, col - 1)
+
     def redraw_all(self):
         if self.enable_propagation:
             self.trail.propagate()
@@ -357,8 +386,9 @@ class TrailUI:
         for state in self.states:
             state.redraw_state()
 
-        for state in self.states:
-            state.redraw_propagation()
+        if PRINT_PROPS is True:
+            for state in self.states:
+                state.redraw_propagation()
 
     def redraw_probablities(self):
         if self.alpha_reflection is True:

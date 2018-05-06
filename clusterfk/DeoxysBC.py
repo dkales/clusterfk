@@ -128,10 +128,21 @@ class DeoxysBCTrail(Trail.Trail):
         row = 0
         for i in range(1, self.rounds + 1):
             UI.StateUI(parentui, row, col, self.states["T" + str(i)], gridopts={"columnspan": 3})
-            col += 2
-            col += 3
+            col += 5
 
         # rounds
+        col = 0
+        row += 1
+        for i in range(1, self.rounds + 1):
+            UI.StateUI(parentui, row, col, self.states["A" + str(i)])
+            col += 2
+            UI.StateUI(parentui, row, col, self.states["S" + str(i)])
+            col += 1
+            UI.StateUI(parentui, row, col, self.states["R" + str(i)])
+            col += 1
+            UI.StateUI(parentui, row, col, self.states["M" + str(i)])
+            col += 1
+
         col = 1
         row += 1
         for i in range(1, self.rounds + 1):
@@ -152,20 +163,6 @@ class DeoxysBCTrail(Trail.Trail):
             l.grid(fill=None, row=row, column=col, columnspan=2)
             parentui.probabilitylabels["M" + str(i)] = l
             col += 2
-
-        col = 0
-        #row += 1
-        for i in range(1, self.rounds + 1):
-            UI.StateUI(parentui, row, col, self.states["A" + str(i)])
-            col += 2
-            UI.StateUI(parentui, row, col, self.states["S" + str(i)])
-            col += 1
-            UI.StateUI(parentui, row, col, self.states["R" + str(i)])
-            col += 1
-            UI.StateUI(parentui, row, col, self.states["M" + str(i)])
-            col += 1
-
-        col -= 1
 
         # TODO add last round (additional AddTweakey)
 
