@@ -37,12 +37,13 @@ class StatePopup(object):
         self.l.grid(row=0, column=0, columnspan=2)
 
         self.lb = Listbox(top)# OptionMenu(top, Tkinter.StringVar().set(self.states[-1]), *self.states)
+        self.lb.insert("end", "0")
         for i, (state, color) in enumerate(self.master.trail.colorlist.items()):
             str = ",".join(["{:x}".format(x) for x in state])
             self.lb.insert("end", str)
-            self.lb.itemconfig(i, {'bg': color, })
+            self.lb.itemconfig(i + 1, {"bg": color})
         self.lb.grid(row=1, column=1, padx=MARGIN_LR / 2, pady=MARGIN_TB)
-        self.lb.config(height=5)
+        self.lb.config(height=5, width=8)
         self.lb.bind("<Double-Button-1>", lambda x: self.set_text(self.lb.get(self.lb.curselection())))
 
         self.e = Entry(top)
