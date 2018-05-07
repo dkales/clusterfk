@@ -1,6 +1,6 @@
 import Tkinter
 import tkFont
-from Tkinter import Tk, Canvas, Frame, Button, Entry, Toplevel, Label, Menu
+from Tkinter import Tk, Canvas, Frame, Button, Entry, Toplevel, Label, Menu, Scrollbar, Listbox
 from Tkinter import N, E, S, W, BOTH, TOP, BOTTOM, LEFT, RIGHT, LAST, FIRST
 import tkFileDialog
 import math
@@ -32,30 +32,49 @@ class StatePopup(object):
     def __init__(self, master, default_value, state_probs):
         top = self.top = Toplevel(master.canvas)
         self.master = master
+
         self.l = Label(top, text="New State")
-        self.l.pack()
+        self.l.grid(row=0, column=0, columnspan=2)
+
+        self.lb = Listbox(top)# OptionMenu(top, Tkinter.StringVar().set(self.states[-1]), *self.states)
+        for i, (state, color) in enumerate(self.master.trail.colorlist.items()):
+            str = ",".join(["{:x}".format(x) for x in state])
+            self.lb.insert("end", str)
+            self.lb.itemconfig(i, {'bg': color, })
+        self.lb.grid(row=1, column=1, padx=MARGIN_LR / 2, pady=MARGIN_TB)
+        self.lb.config(height=5)
+        self.lb.bind("<Double-Button-1>", lambda x: self.set_text(self.lb.get(self.lb.curselection())))
+
         self.e = Entry(top)
         self.e.insert(0, default_value)
         self.e.bind("<Control-KeyRelease-a>", lambda x: self.select_all())
-        self.e.pack()
+        self.e.grid(row=1, column=0, sticky=N, padx=MARGIN_LR / 2, pady=MARGIN_TB)
         self.e.select_range(0, 'end')
         self.e.icursor('end')
         self.e.focus()
+
         self.b = Button(top, text='Ok', command=self.check_cleanup)
         self.top.protocol("WM_DELETE_WINDOW", self.close)
-        self.b.pack()
+        self.b.grid(row=3, column=0, columnspan=2)
+
         self.l2 = Label(top, text="Probabilities")
-        self.l2.pack()
+        self.l2.grid(row=4, column=0, columnspan=2)
         for i, x in enumerate(state_probs):
-            if x > 0:
-                l = Label(top, text=hex(i)[2:] + ":" + str(x))
-                l.pack()
+            #if x > 0:
+            #    l = Label(top, text=hex(i)[2:] + ":" + str(x))
+            #    l.pack()
+            pass
+
         self.top.bind("<Return>", lambda x: self.check_cleanup())
         self.top.bind("<Escape>", lambda x: self.close())
         self.value = None
         self.top.wait_visibility()
         # stop interaction in other gui
         self.top.grab_set()
+
+    def set_text(self, text):
+        self.e.delete(0, 'end')
+        self.e.insert(0, text)
 
     def select_all(event):
         event.e.select_range(0, 'end')
@@ -438,6 +457,7 @@ class TrailUI:
             self.trail.getProbability(verbose=True)
         self.redrawColorList()
         self.redraw_states()
+        self.redraw_selection()
         if self.enable_propagation:
             self.redraw_probablities()
 
