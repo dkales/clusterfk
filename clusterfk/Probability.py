@@ -452,6 +452,7 @@ class InnerRoundStepQarma(ProbabilityStep):
         self.mixcolstateout = mixcolstateout
         self.ddt = sboxDDT
         self.P = P
+        self.P_inv = [P.index(i) for i in range(len(P))]
         self.M = M
 
     def getProbability(self, verbose=False):
@@ -468,7 +469,7 @@ class InnerRoundStepQarma(ProbabilityStep):
                                                self.M)
 
         # perm backward round - permute state probs
-        self.PermuteProbs(self.mixcolstateout, self.permstateout, self.P)
+        self.PermuteProbs(self.mixcolstateout, self.permstateout, self.P_inv)
 
         # sbox backward round
         overall_prob *= self.SBOXProbability(self.permstateout, self.sboxstateout, self.ddt)

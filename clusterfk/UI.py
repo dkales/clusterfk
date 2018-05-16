@@ -86,9 +86,9 @@ class StatePopup(object):
     def check_cleanup(self):
         newstate = self.e.get()
         if newstate == "":
-            self.value = range(1, self.master.trail.statebitsize)
+            self.value = range(0, 2**(self.master.trail.statebitsize / self.master.trail.statesize))
         elif newstate == "*":
-            self.value = range(1, self.master.trail.statebitsize)
+            self.value = range(1, 2**(self.master.trail.statebitsize / self.master.trail.statesize))
         else:
             try:
                 state = []
@@ -542,7 +542,7 @@ class ClusterFK:
         if self.trailUI is not None:
             self.trailUI.cleanup()
         self.trail = trail
-        self.trail.propagate()
+        #self.trail.propagate()
         self.trailUI = TrailUI(self.root, self.trail)
         self.trailUI.redraw_all()
         self.trailUI.redrawColorList()
