@@ -255,6 +255,7 @@ class Trail:
 
     def updateColorList(self):
         stateset = self.getSetOfCurrentStates()
+        #self.colorlist = #{state: color for state, color in zip(stateset, COLORS.values())}
         self.colorlist = {state: color for state, color in
                           zip(stateset, COLORS.values() + ["#999999"] * (len(stateset) - len(COLORS.values())))}
         # for familarity, guarantee that 0xa is red

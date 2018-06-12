@@ -36,7 +36,7 @@ class StatePopup(object):
         self.l = Label(top, text="New State")
         self.l.grid(row=0, column=0, columnspan=2)
 
-        self.lb = Listbox(top)# OptionMenu(top, Tkinter.StringVar().set(self.states[-1]), *self.states)
+        self.lb = Listbox(top)  # OptionMenu(top, Tkinter.StringVar().set(self.states[-1]), *self.states)
         self.lb.insert("end", "0")
         for i, (state, color) in enumerate(self.master.trail.colorlist.items()):
             str = ",".join(["{:x}".format(x) for x in state])
@@ -61,7 +61,7 @@ class StatePopup(object):
         self.l2 = Label(top, text="Probabilities")
         self.l2.grid(row=4, column=0, columnspan=2)
         for i, x in enumerate(state_probs):
-            #if x > 0:
+            # if x > 0:
             #    l = Label(top, text=hex(i)[2:] + ":" + str(x))
             #    l.pack()
             pass
@@ -355,8 +355,27 @@ class TrailUI:
         self.alpha_reflection = trail.alpha_reflection
         self.states = []
         self.probabilitylabels = {}
-        self.trailframe = Frame(parent)
-        self.trailframe.pack(fill=Tkinter.X, expand=1)
+        ## scrollbar
+        # create a canvas object and a vertical scrollbar for scrolling it
+        self.scrollframe = Frame(parent)
+        self.hsb = Scrollbar(self.scrollframe, orient=Tkinter.HORIZONTAL)
+        self.hsb.pack(fill=Tkinter.X, side=BOTTOM, expand=Tkinter.FALSE)
+        self.scrollcanvas = Canvas(self.scrollframe, bd=0, highlightthickness=0,
+                        xscrollcommand=self.hsb.set)
+        self.scrollcanvas.pack(side=LEFT, fill=BOTH, expand=Tkinter.TRUE)
+        self.hsb.config(command=self.scrollcanvas.xview)
+
+        # reset the view
+        self.scrollcanvas.xview_moveto(0)
+        self.scrollcanvas.yview_moveto(0)
+
+        # put trailframe into scrollframe and assign configs
+        self.trailframe = interior = Frame(self.scrollcanvas)
+        self.interior_id = self.scrollcanvas.create_window(10, 0, window=interior, anchor=Tkinter.NW)
+        interior.bind('<Configure>', self._configure_interior)
+        self.scrollcanvas.bind('<Configure>', self._configure_canvas)
+
+        self.scrollframe.pack(fill=Tkinter.X, expand=1)
         self.infoframe = Frame(parent)
         self.infoframe.pack(fill=Tkinter.X, expand=1, side=BOTTOM)
         self.canvas = Canvas(self.infoframe, width=1000, height=200)
@@ -382,6 +401,22 @@ class TrailUI:
 
         self.parent.bind("<Escape>", lambda event: self._clear_selection())
         self.parent.bind("<Return>", lambda event: self.open_cell_dialogue())
+
+    # track changes to the canvas and frame width and sync them,
+    # also updating the scrollbar
+    # taken from https://gist.github.com/EugeneBakin/76c8f9bcec5b390e45df
+    def _configure_interior(self, event):
+        # update the scrollbars to match the size of the inner frame
+        size = (self.trailframe.winfo_reqwidth(), self.trailframe.winfo_reqheight())
+        self.scrollcanvas.config(scrollregion="0 0 %s %s" % size)
+        if self.trailframe.winfo_reqwidth() != self.scrollcanvas.winfo_width():
+            # update the canvas's width to fit the inner frame
+            self.scrollcanvas.config(width=self.trailframe.winfo_reqwidth())
+
+    def _configure_canvas(self, event):
+        if self.trailframe.winfo_reqwidth() != self.scrollcanvas.winfo_width():
+            # update the inner frame's width to fill the canvas
+            self.scrollcanvas.itemconfigure(self.trailframe, width=self.scrollcanvas.winfo_width())
 
     def __selection_start(self, event):
         print "Selection start/continue"

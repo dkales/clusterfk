@@ -9,6 +9,7 @@ COLORS = {
     "red": "#dc322f",
     "darkred": "#800000",
     "magenta": "#d33682",
+    "lightcoral": "#F08080",
     "violet": "#6c71c4",
     "blue": "#268bd2",
     "cyan": "#2aa198",
@@ -17,11 +18,26 @@ COLORS = {
     "green": "#859900",
     "grey": "#cccccc",
     "black": "#000000",
-    "grey1": "#333333",
+    "grey1": "#454545",
     "grey2": "#666666",
     "grey3": "#999999",
-    "grey4": "#1f1f1f",
-
+    "grey4": "#C0C0C0",
+    "maroon": "#800000",
+    "yellow2": "#FFFF00",
+    "olive": "#808000",
+    "aqua": "#00FFFF",
+    "purple": "#800080",
+    "teal":"#008080",
+    "nicered":"#723149",
+    "intenseblue":"#1a46d7",
+    "lightgreen": "#ccedb5",
+    "bluegrey": "#416778",
+    "creme": "#dfd9bf",
+    "pink": "#fbd7ff",
+    "nicegreen": "#7ea876",
+    "nicepurple": "#8113f8",
+    "foggyblue": "#8113f8",
+    "yellow3": "#eadd5c"
 }
 
 json_schema = {
