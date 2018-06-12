@@ -12,9 +12,11 @@ STATE_COL = 4
 STATE_SIZE = STATE_ROW * STATE_COL
 STATE_BIT_SIZE = 64
 
-SBOX = [0, 14, 2, 10, 9, 15, 8, 11, 6, 4, 3, 7, 13, 12, 1, 5]  # Sbox0
+SBOX_0 = [0, 14, 2, 10, 9, 15, 8, 11, 6, 4, 3, 7, 13, 12, 1, 5]  # Sbox0
 SBOX_1 = [10, 13, 14, 6, 15, 7, 3, 5, 9, 8, 0, 12, 11, 1, 2, 4]
 SBOX_2 = [11, 6, 8, 15, 13, 0, 9, 14, 3, 7, 4, 5, 12, 2, 1, 10]
+SBOX = SBOX_0
+
 P = (0, 11, 6, 13, 10, 1, 12, 7, 5, 14, 3, 8, 15, 4, 9, 2)
 P_I = (P.index(x) for x in range(16))
 H = (6, 5, 14, 15, 0, 1, 2, 3, 7, 12, 13, 4, 8, 9, 10, 11)
@@ -116,8 +118,8 @@ class QarmaTrail(Trail.Trail):
             Propagation.MixColStep(self.states["I" + str(self.rounds + 1)],
                                    self.states["I" + str(self.rounds + 1) + "_i"], M4_3))
         self.propagations.append(
-            Propagation.PermutationStep(self.states["I" + str(self.rounds + 1) + "_i"],
-                                        self.states["A" + str(self.rounds + 1) + "_i"], P))
+            Propagation.PermutationStep(self.states["A" + str(self.rounds + 1) + "_i"],
+                                        self.states["I" + str(self.rounds + 1) + "_i"], P))
 
         # tweak
         for i in range(self.rounds):
@@ -150,7 +152,7 @@ class QarmaTrail(Trail.Trail):
                 if i == self.rounds + 2:
                     self.propagations.append(
                         Propagation.SBOXStep(self.states["S" + str(i)],
-                                             self.states["I" + str(i - 1) + "_i"], self.sboxDDT))
+                                             self.states["A" + str(i - 1) + "_i"], self.sboxDDT))
                 else:
                     self.propagations.append(
                         Propagation.SBOXStep(self.states["S" + str(i)],
