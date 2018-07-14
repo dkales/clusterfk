@@ -1,7 +1,6 @@
 import Tkinter
-import tkFont
 from Tkinter import Tk, Canvas, Frame, Button, Entry, Toplevel, Label, Menu, Scrollbar, Listbox
-from Tkinter import N, E, S, W, BOTH, TOP, BOTTOM, LEFT, RIGHT, LAST, FIRST
+from Tkinter import N, BOTH, BOTTOM, LEFT, LAST, FIRST
 import tkFileDialog
 import math
 import json

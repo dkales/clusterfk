@@ -3,7 +3,6 @@ from Tkinter import Label, StringVar
 from Utils import COLORS
 
 # external modules
-import re
 import math
 import itertools
 

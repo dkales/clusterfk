@@ -3,11 +3,7 @@ from Tkinter import Label, StringVar
 from Utils import COLORS
 
 # external modules
-import re
 import math
-import itertools
-from copy import deepcopy
-import time
 
 STATE_ROW = 4
 STATE_COL = 4

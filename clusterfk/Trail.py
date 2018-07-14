@@ -4,10 +4,6 @@ from clusterfk import Propagation
 
 # external
 import re
-import json
-import pickle
-from json import JSONEncoder
-
 
 class State:
     """
