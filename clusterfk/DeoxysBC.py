@@ -129,6 +129,11 @@ class DeoxysBCTrail(Trail.Trail):
         row = 0
         for i in range(1, self.rounds + 1):
             UI.StateUI(parentui, row, col, self.states["T" + str(i)], gridopts={"columnspan": 3})
+
+            # TODO draw T better instead of this useless class
+            if i > 0 and i != (self.rounds):
+                UI.UpdateTweakeyUI(parentui, row, col + 1, i, gridopts={"columnspan": 5})
+
             col += 5
 
         # rounds

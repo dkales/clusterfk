@@ -15,7 +15,7 @@ try:
 except Exception:
     import pickle
 
-MARGIN_LR = 10  # Pixels left and right of the board (x)
+MARGIN_LR = 15  # Pixels left and right of the board (x)
 MARGIN_TB = 12  # Pixels above and below board (y)
 SIDE = 12  # Width of every state cell.
 PRINT_NAMES = True
@@ -86,9 +86,9 @@ class StatePopup(object):
     def check_cleanup(self):
         newstate = self.e.get()
         if newstate == "":
-            self.value = range(0, 2**(self.master.trail.statebitsize / self.master.trail.statesize))
+            self.value = range(0, 2 ** (self.master.trail.statebitsize / self.master.trail.statesize))
         elif newstate == "*":
-            self.value = range(1, 2**(self.master.trail.statebitsize / self.master.trail.statesize))
+            self.value = range(1, 2 ** (self.master.trail.statebitsize / self.master.trail.statesize))
         else:
             try:
                 state = []
@@ -111,6 +111,60 @@ class StatePopup(object):
         self.top.destroy()
 
 
+class UpdateTweakeyUI(Frame):
+    def __init__(self, trailui, row, col, nr, scale=1, gridopts=None):
+        self._row = row
+        self._col = col
+        self._nr = nr
+        self._parent = trailui.trailframe
+        self._trailui = trailui
+        self._scale = scale
+        self._gridopts = gridopts
+
+        self.__setScaling(scale)
+        Frame.__init__(self, self._parent)
+        self.__initUI()
+        trailui.tweakprops.append(self)
+
+    def __setScaling(self, scale):
+        self._dim = {}
+        # self.__dim["MARGIN"] = int(MARGIN * scale)
+        self._dim["MARGIN_LR"] = int(MARGIN_LR)
+        self._dim["MARGIN_TB"] = int(MARGIN_TB)
+        self._dim["SIDE"] = int(SIDE * scale)
+        if self._nr > 0:
+            self._dim["WIDTH"] = self._dim["SIDE"] * self._trailui.trail.statecol * 3 \
+                                 + self._dim["MARGIN_LR"] * 6
+        else:
+            self._dim["WIDTH"] = self._dim["MARGIN_LR"] * 2
+
+        self._dim["HEIGHT"] = self._dim["SIDE"] * self._trailui.trail.staterow + self._dim[
+            "MARGIN_TB"] * 2
+
+    def __initUI(self):
+        if self._gridopts is None:
+            self._gridopts = {}
+
+        self.grid(fill=None, row=self._row, column=self._col, **(self._gridopts))
+        self.canvas = Canvas(self,
+                             width=self._dim["WIDTH"],
+                             height=self._dim["HEIGHT"])
+        self.canvas.pack(fill=None)
+
+        self.redraw_propagation()
+
+    def redraw_propagation(self):
+        self.canvas.delete("prop")
+
+        xr_0 = 0
+        xr_1 = self._dim["WIDTH"]
+        y = self._dim["MARGIN_TB"] + self._dim["SIDE"] * 4 / 2
+
+        # line through cell
+        self.canvas.create_line(xr_0, y, xr_1, y,
+                                tags="prop", fill="black")
+
+
 class StateUI(Frame):
     def __init__(self, trailui, row, col, state, scale=1, gridopts=None):
         self.state = state
@@ -131,8 +185,10 @@ class StateUI(Frame):
         self._dim["MARGIN_LR"] = int(MARGIN_LR)
         self._dim["MARGIN_TB"] = int(MARGIN_TB)
         self._dim["SIDE"] = int(SIDE * scale)
-        self._dim["WIDTH"] = self._dim["SIDE"] * self.state.staterow + self._dim["MARGIN_LR"] * 2
-        self._dim["HEIGHT"] = self._dim["SIDE"] * self.state.statecol + self._dim["MARGIN_TB"] * 2
+        self._dim["WIDTH"] = self._dim["SIDE"] * self.state.statecol + self._dim["MARGIN_LR"] * 2
+        self._dim["HEIGHT"] = self._dim["SIDE"] * self.state.staterow + self._dim["MARGIN_TB"] * 2
+        if "T" in self.state.name:
+            self._dim["WIDTH"] += self._dim["SIDE"] * self.state.statecol
 
     def __initUI(self, gridopts=None):
         if gridopts is None:
@@ -141,7 +197,7 @@ class StateUI(Frame):
         self.grid(fill=None, row=self._row, column=self._col, **gridopts)
         self.canvas = Canvas(self,
                              width=self._dim["WIDTH"],
-                             height=self._dim["HEIGHT"])
+                             height=self._dim["HEIGHT"])#, highlightbackground="red")
         self.canvas.pack(fill=None)
 
         self.redraw_state()
@@ -161,14 +217,17 @@ class StateUI(Frame):
             color = "blue" if i % 4 == 0 else "gray"
 
             x0 = self._dim["MARGIN_LR"] + i * self._dim["SIDE"]
-            y0 = self._dim["MARGIN_TB"]
             x1 = self._dim["MARGIN_LR"] + i * self._dim["SIDE"]
+            if "T" in self.state.name:
+                x0 += self._dim["SIDE"] * (self.state.staterow / 2)
+                x1 += self._dim["SIDE"] * (self.state.staterow / 2)
+            y0 = self._dim["MARGIN_TB"]
             y1 = self._dim["HEIGHT"] - self._dim["MARGIN_TB"]
             self.canvas.create_line(x0, y0, x1, y1, fill=color, tags="grid")
 
             x0 = self._dim["MARGIN_LR"]
-            y0 = self._dim["MARGIN_TB"] + i * self._dim["SIDE"]
             x1 = self._dim["WIDTH"] - self._dim["MARGIN_LR"]
+            y0 = self._dim["MARGIN_TB"] + i * self._dim["SIDE"]
             y1 = self._dim["MARGIN_TB"] + i * self._dim["SIDE"]
             self.canvas.create_line(x0, y0, x1, y1, fill=color, tags="grid")
 
@@ -186,6 +245,8 @@ class StateUI(Frame):
                     color = self._trailui.trail.colorlist[frozenset(val)]
 
                 x = self._dim["MARGIN_LR"] + j * self._dim["SIDE"]
+                if "T" in self.state.name:
+                    x += self._dim["SIDE"] * (self.state.statecol / 2)
                 y = self._dim["MARGIN_TB"] + i * self._dim["SIDE"]
                 self.canvas.create_rectangle(x, y, x + self._dim["SIDE"], y + self._dim["SIDE"], fill=color,
                                              tags="state")
@@ -193,6 +254,8 @@ class StateUI(Frame):
                 # numbers in state cells for same propagation
                 if self.state.statenumbers[i * self.state.staterow + j] != 0:
                     x = self._dim["MARGIN_LR"] + j * self._dim["SIDE"] + self._dim["SIDE"] / 2
+                    if "T" in self.state.name:
+                        x += self._dim["SIDE"] * (self.state.statecol / 2)
                     y = self._dim["MARGIN_TB"] + i * self._dim["SIDE"] + self._dim["SIDE"] / 2
                     self.canvas.create_text(x, y, text=str(self.state.statenumbers[i * self.state.staterow + j]),
                                             tags="state", fill="black")
@@ -208,22 +271,32 @@ class StateUI(Frame):
         # TODO enhance
         self.canvas.delete("prop")
 
+        xl_0 = 0
+        xl_1 = self._dim["MARGIN_LR"]
+        xr_0 = self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol
+        xr_1 = self._dim["MARGIN_LR"] * 2 + self._dim["SIDE"] * self.state.statecol
+        y = self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow / 2
+
         if "T" in self.state.name:
-            # self.canvas.create_line(
-            #    self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol / 2,
-            #    self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow,
-            #    self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol / 2,
-            #    self._dim["MARGIN_TB"] * 2 + self._dim["SIDE"] * self.state.staterow,
-            #    tags="prop", fill="black")
-            pass
+            xl_1 += self._dim["SIDE"] * self.state.statecol / 2
+            xr_0 += self._dim["SIDE"] * self.state.statecol / 2
+            xr_1 += self._dim["SIDE"] * self.state.statecol
+
+            # arrow to state
+            self.canvas.create_line(xl_0, y, xl_1, y,
+                                    tags="prop", fill="black", arrow=LAST, arrowshape=(5, 9, 3))
+
+            if self._col < (self._trailui.maxgridcol - 6):
+                # line out of state
+                self.canvas.create_line(xr_0, y, xr_1, y,
+                                        tags="prop", fill="black")
+
+                # prop name
+                self.canvas.create_text(xr_0 + self._dim["MARGIN_LR"] / 2 + 1,
+                                        y - self._dim["MARGIN_TB"] / 2 - 1,
+                                        tags="prop", text="h")
 
         else:
-            xl_0 = 0
-            xl_1 = self._dim["MARGIN_LR"]
-            xr_0 = self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol
-            xr_1 = self._dim["MARGIN_LR"] * 2 + self._dim["SIDE"] * self.state.statecol
-            y = self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow / 2
-
             if self._trailui.alpha_reflection is True:
                 if self._row < self._parent.grid_size()[1] - 2:  # Todo remove hardcoded value
                     if self._col > 0:
@@ -279,8 +352,13 @@ class StateUI(Frame):
         cells_to_select = list()
 
         # get data of newly selected cell
-        state_col = (event.x - self._dim["MARGIN_LR"]) // self._dim["SIDE"]
+        if "T" in self.state.name:
+            state_col = (event.x - self._dim["MARGIN_LR"] - self._dim["SIDE"] * (self.state.statecol/2)) // self._dim["SIDE"]
+        else:
+            state_col = (event.x - self._dim["MARGIN_LR"]) // self._dim["SIDE"]
+
         state_row = (event.y - self._dim["MARGIN_TB"]) // self._dim["SIDE"]
+
         oldstate = self.state.at(state_row, state_col)
         state_probs = self.state.stateprobs[state_row * self.state.statecol + state_col]
         selected_cell = {"stateUI": self, "row": state_row, "col": state_col, "oldstate": oldstate,
@@ -330,6 +408,8 @@ class StateUI(Frame):
             print "Cell ({},{}) = {}".format(selected_cell["row"], selected_cell["col"], selected_cell["oldstate"])
 
         x = self._dim["MARGIN_LR"] + selected_cell["col"] * self._dim["SIDE"]
+        if "T" in self.state.name:
+            x += self._dim["SIDE"] * (self.state.statecol / 2)
         y = self._dim["MARGIN_TB"] + selected_cell["row"] * self._dim["SIDE"]
         self.canvas.create_rectangle(x, y, x + self._dim["SIDE"], y + self._dim["SIDE"], fill='',
                                      outline="red",
@@ -354,14 +434,15 @@ class TrailUI:
         self.trail = trail
         self.alpha_reflection = trail.alpha_reflection
         self.states = []
+        self.tweakprops = []
         self.probabilitylabels = {}
         ## scrollbar
         # create a canvas object and a vertical scrollbar for scrolling it
-        self.scrollframe = Frame(parent)
+        self.scrollframe = Frame(parent, highlightthickness=10)
         self.hsb = Scrollbar(self.scrollframe, orient=Tkinter.HORIZONTAL)
         self.hsb.pack(fill=Tkinter.X, side=BOTTOM, expand=Tkinter.FALSE)
         self.scrollcanvas = Canvas(self.scrollframe, bd=0, highlightthickness=0,
-                        xscrollcommand=self.hsb.set)
+                                   xscrollcommand=self.hsb.set, height=300)
         self.scrollcanvas.pack(side=LEFT, fill=BOTH, expand=Tkinter.TRUE)
         self.hsb.config(command=self.scrollcanvas.xview)
 
@@ -371,11 +452,11 @@ class TrailUI:
 
         # put trailframe into scrollframe and assign configs
         self.trailframe = interior = Frame(self.scrollcanvas)
-        self.interior_id = self.scrollcanvas.create_window(10, 0, window=interior, anchor=Tkinter.NW)
+        self.interior_id = self.scrollcanvas.create_window(0, 0, window=interior, anchor=Tkinter.NW)
         interior.bind('<Configure>', self._configure_interior)
         self.scrollcanvas.bind('<Configure>', self._configure_canvas)
 
-        self.scrollframe.pack(fill=Tkinter.X, expand=1)
+        self.scrollframe.pack(fill=Tkinter.X, expand=1, side=TOP)
         self.infoframe = Frame(parent)
         self.infoframe.pack(fill=Tkinter.X, expand=1, side=BOTTOM)
         self.canvas = Canvas(self.infoframe, width=1000, height=200)
@@ -504,6 +585,8 @@ class TrailUI:
         if PRINT_PROPS is True:
             for state in self.states:
                 state.redraw_propagation()
+            for filler in self.tweakprops:
+                filler.redraw_propagation()
 
     def redraw_probablities(self):
         if self.alpha_reflection is True:
@@ -577,7 +660,7 @@ class ClusterFK:
         if self.trailUI is not None:
             self.trailUI.cleanup()
         self.trail = trail
-        #self.trail.propagate()
+        # self.trail.propagate()
         self.trailUI = TrailUI(self.root, self.trail)
         self.trailUI.redraw_all()
         self.trailUI.redrawColorList()

@@ -199,12 +199,20 @@ class MantisTrail(Trail.Trail):
         # inner round forwards
         UI.StateUI(parentui, row, col, self.states["A" + str(self.rounds + 1)])
 
+
         # tweak
         col = 0
         row += 1
         for i in range(self.rounds + 1):
             UI.StateUI(parentui, row, col, self.states["T" + str(i)], gridopts={"columnspan": 3})
-            if i != 0:
+
+            # TODO draw T better instead of this useless class
+            if i > 0 and i != (self.rounds):
+                UI.UpdateTweakeyUI(parentui, row, col + 1, i, gridopts={"columnspan": 5})
+            if i == 0:
+                UI.UpdateTweakeyUI(parentui, row, col + 1, i, gridopts={"columnspan": 3})
+
+            if i > 0:
                 col += 2
             col += 3
 

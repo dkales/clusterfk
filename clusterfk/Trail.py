@@ -1,3 +1,4 @@
+import time
 import Utils
 from Utils import COLORS
 from clusterfk import Propagation
@@ -209,22 +210,17 @@ class Trail:
             if not isinstance(p, Propagation.MixColStepDeoxys) and not isinstance(p, Propagation.MixColStep):
                 p.propagate()
 
-        # TODO: also restrict to the back
-        changed = True
-        start = 0
-        while changed:
-            new_start = len(self.propagations) + 1
-            changed = False
-            for i, p in enumerate(self.propagations, start):
-                p.propagate()
-                if p.inchanged or p.outchanged:
-                    changed = True
-                    if i < new_start:
-                        new_start = i
-                        if p.inchanged and i > 0:
-                            new_start = i - 1
 
-            start = new_start
+        start_time = time.time()
+
+        #TODO: check for changes, do not just stupidly propagate N times
+        for _ in range(1, len(self.propagations)):
+            for p in self.propagations:
+                p.propagate()
+
+
+        end_time = time.time()
+        print "Needed " + str(end_time - start_time) + "s"
 
         print "Finished Propagation"
 
