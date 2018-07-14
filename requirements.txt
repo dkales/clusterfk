@@ -7,4 +7,3 @@ Tkinter
 tkFileDialog
 json
 jsonschema
-jsonschema.validate
