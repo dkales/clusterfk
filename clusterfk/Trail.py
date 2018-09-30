@@ -144,12 +144,12 @@ class Trail:
                         row.append({int(statestr, 2)})
                 state.append(row)
 
-            name = name + str(curr_round)
+            res_name = name + str(curr_round)
             # assert name not in self.states
-            assert name not in self.states or curr_round == self.rounds + 1  # double inner steps for Qarma
-            if name in self.states:
-                name = name + "_i"
-            self.states[name] = self.stateclass(name, state)
+            assert res_name not in self.states or curr_round == self.rounds + 1  # double inner steps for Qarma
+            if res_name in self.states:
+                res_name = name + "_i" + str(curr_round)
+            self.states[res_name] = self.stateclass(res_name, state)
 
         elif num_states == 8:
             state = []

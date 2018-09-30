@@ -73,8 +73,8 @@ class QarmaTrail(Trail.Trail):
                 self.states["S" + str(self.rounds)],
                 self.states["A" + str(self.rounds + 1)],
                 self.states["I" + str(self.rounds + 1)],
-                self.states["I" + str(self.rounds + 1) + "_i"],
-                self.states["A" + str(self.rounds + 1) + "_i"],
+                self.states["I_i" + str(self.rounds + 1)],
+                self.states["A_i" + str(self.rounds + 1)],
                 self.states["S" + str(self.rounds + 2)], self.sboxDDT, P, M4_3))
 
         for i in range(self.rounds + 2, (self.rounds + 1) * 2):
@@ -115,10 +115,10 @@ class QarmaTrail(Trail.Trail):
                                         self.states["I" + str(self.rounds + 1)], P))
         self.propagations.append(
             Propagation.MixColStep(self.states["I" + str(self.rounds + 1)],
-                                   self.states["I" + str(self.rounds + 1) + "_i"], M4_3))
+                                   self.states["I_i" + str(self.rounds + 1)], M4_3))
         self.propagations.append(
-            Propagation.PermutationStep(self.states["A" + str(self.rounds + 1) + "_i"],
-                                        self.states["I" + str(self.rounds + 1) + "_i"], P))
+            Propagation.PermutationStep(self.states["A_i" + str(self.rounds + 1)],
+                                        self.states["I_i" + str(self.rounds + 1)], P))
 
         # tweak
         for i in range(self.rounds):
@@ -151,7 +151,7 @@ class QarmaTrail(Trail.Trail):
                 if i == self.rounds + 2:
                     self.propagations.append(
                         Propagation.SBOXStep(self.states["S" + str(i)],
-                                             self.states["A" + str(i - 1) + "_i"], self.sboxDDT))
+                                             self.states["A_i" + str(i - 1)], self.sboxDDT))
                 else:
                     self.propagations.append(
                         Propagation.SBOXStep(self.states["S" + str(i)],
@@ -234,9 +234,9 @@ class QarmaTrail(Trail.Trail):
             col += 1
 
         # inner round backwards
-        UI.StateUI(parentui, row, col, self.states["I" + str(self.rounds + 1) + "_i"])
+        UI.StateUI(parentui, row, col, self.states["I_i" + str(self.rounds + 1)])
         col += 1
-        UI.StateUI(parentui, row, col, self.states["A" + str(self.rounds + 1) + "_i"])
+        UI.StateUI(parentui, row, col, self.states["A_i" + str(self.rounds + 1)])
 
         parentui.maxgridcol = col
 
@@ -418,15 +418,15 @@ class QarmaTrail(Trail.Trail):
         tout = "O"  # r"{\text{out}}"
         ct = "  0"
         x = 0
-        stepnext = 6
-        stepxor = 3
+        stepnext = 7
+        stepxor = 3.5
         numrounds = self.rounds
         rnds = range(numrounds)
         rows = range(4)
         cols = range(4)
         dirs = ['in', 'out']
 
-        output.append(r"\caption{" + "Mantis-{R}: {S} active S-boxes, $2^{{{P:.2f}}}$ probability".format(R=numrounds,
+        output.append(r"\caption{" + "QARMA-{R}: $2^{{{P:.2f}}}$ probability".format(R=numrounds,
                                                                                                           S=sum([1 if
                                                                                                                  self.states[
                                                                                                                      "S" + str(
@@ -515,7 +515,7 @@ class QarmaTrail(Trail.Trail):
             output.append(labelprob(x + 1 * stepxor + 1.5 * stepnext, r"2.75*" + lo, "$2^{" + \
                                     "{0:.2f}".format(math.log(overallprob, 2)) + "}$"))
             r = str(rnd)
-            output.append(label(x, x + 2 * stepxor + 3 * stepnext, "Round " + r))
+            output.append(label(x, x + 2 * stepxor + 3 * stepnext, "Round " + str(rnd + 1)))
             output.append(state2sbs(x, hi, "xi" + r, "$x^" + tin + "_{" + r + "}$", getstate("S", "in", rnd)))
             output.append(state2sbs(x, lo, "xo" + r, "$x^" + tout + "_{" + r + "}$", getstate("S", "out", rnd)))
             x += stepnext
@@ -525,7 +525,7 @@ class QarmaTrail(Trail.Trail):
             output.append(prevstate("xo" + r, "Xo" + r, r"\SB"))
             x += stepxor
             output.append(state2sbs(x, ct, "th" + r, "$t_{" + r + "}\qquad$", getstate("T", None, rnd + 1)))
-            output.append(nextstate("th" + str(rnd - 1).replace("-", "_"), "th" + r, "$h$"))
+            output.append(nextstate("th" + str(rnd - 1).replace("-", "_"), "th" + r, "$\omega \circ h$"))
             x += stepxor
             output.append(state2sbs(x, hi, "yi" + r, "$y^" + tin + "_{" + r + "}$", getstate("P", "in", rnd + 1)))
             output.append(state2sbs(x, lo, "yo" + r, "$y^" + tout + "_{" + r + "}$", getstate("P", "out", rnd + 1)))
@@ -541,8 +541,9 @@ class QarmaTrail(Trail.Trail):
             output.append(nextstate("yi" + r, "Pi" + r, r"\SR"))
             output.append(prevstate("yo" + r, "Po" + r, r"\SR"))
             x += stepnext
-            output.append(r"  \draw[next] (Pi" + r + r"_east) -- node[above,font=\scriptsize] {\MC} ++(2,0);")
-            output.append(r"  \draw[next] (Po" + r + r"_east) +(2,0) -- node[above,font=\scriptsize] {\MC} ++(0,0);")
+            output.append(r"  \draw[next] (Pi" + r + r"_east) -- node[above,font=\scriptsize] {\MC} ++(3,0);")
+            output.append(r"  \draw[next] (Po" + r + r"_east) +(2,0) -- node[above,font=\scriptsize] {\MC} ++(3,0);")
+
 
         # middle rounds
         prob = self.probabilities[self.rounds]
@@ -558,11 +559,19 @@ class QarmaTrail(Trail.Trail):
         output.append(state2sbs(x, hi, "Xi" + str(numrounds), "$x^" + tin + "_{" + str(numrounds) + "}$",
                                 getstate("A", "in", numrounds + 1)))
         output.append(state2sbs(x, lo, "Xo" + str(numrounds), "$x^" + tout + "_{" + str(numrounds) + "}$",
-                                getstate("a", "out", numrounds + 1)))
+                                getstate("A_i", "out", numrounds + 1)))
         output.append(nextstate("xi" + str(numrounds), "Xi" + str(numrounds), r"\SB"))
         output.append(prevstate("xo" + str(numrounds), "Xo" + str(numrounds), r"\SB"))
-        output.append(r"  \draw[next] (Xi" + str(
-            numrounds) + r"_east) -| ++(1,\lo) node[right,font=\scriptsize] {\MC} |- (Xo" + str(numrounds) + "_east);")
+
+        x += stepnext
+        output.append(state2sbs(x, hi, "XPi" + str(numrounds), "$x^" + tin + "_{" + str(numrounds) + "}$",
+                                getstate("I", "in", numrounds + 1)))
+        output.append(state2sbs(x, lo, "XPo" + str(numrounds), "$x^" + tout + "_{" + str(numrounds) + "}$",
+                                getstate("I_i", "out", numrounds + 1)))
+        output.append(nextstate("Xi" + str(numrounds), "XPi" + str(numrounds), r"\SR"))
+        output.append(prevstate("Xo" + str(numrounds), "XPo" + str(numrounds), r"\SR"))
+        output.append(r"  \draw[next] (XPi" + str(
+            numrounds) + r"_east) -| ++(1,\lo) node[right,font=\scriptsize] {\MC} |- (XPo" + str(numrounds) + "_east);")
 
         # legend for state colors
 
