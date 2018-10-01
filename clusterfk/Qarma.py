@@ -542,7 +542,7 @@ class QarmaTrail(Trail.Trail):
             output.append(prevstate("yo" + r, "Po" + r, r"\SR"))
             x += stepnext
             output.append(r"  \draw[next] (Pi" + r + r"_east) -- node[above,font=\scriptsize] {\MC} ++(3,0);")
-            output.append(r"  \draw[next] (Po" + r + r"_east) +(2,0) -- node[above,font=\scriptsize] {\MC} ++(3,0);")
+            output.append(r"  \draw[next] (Po" + r + r"_east) +(3,0) -- node[above,font=\scriptsize] {\MC} ++(0,0);")
 
 
         # middle rounds
