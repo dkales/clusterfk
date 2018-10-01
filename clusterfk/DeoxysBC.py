@@ -250,7 +250,7 @@ class DeoxysBCTrail(Trail.Trail):
         }
     
         \newcommand{\SB}{\textsf{S}}
-        \newcommand{\SR}{\textsf{P}}
+        \newcommand{\SR}{\textsf{R}}
         \newcommand{\MC}{\textsf{M}}
         \newcommand{\AC}{\textsf{+}}
     
@@ -260,41 +260,46 @@ class DeoxysBCTrail(Trail.Trail):
         \begin{figure}[p]
         \centering
         """)
-        hi = r"\hi"
-        lo = r"\lo"
+        hi = r"\hi"  # tweaks
+        lo = r"\lo"  # states
+        mid = "  0"  # labels
         tin = "I"  # r"{\text{in}}"
         tout = "O"  # r"{\text{out}}"
-        ct = "  0"
         x = 0
-        stepnext = 6
-        stepxor = 3
+        stepnext = 7
+        stepxor = 3.5
         numrounds = self.rounds
-        rnds = range(numrounds)
+        rnds = range(1, numrounds)
         rows = range(4)
         cols = range(4)
         dirs = ['in', 'out']
 
-        output.append(r"\caption{" + "Mantis-{R}: {S} active S-boxes, $2^{{{P:.2f}}}$ probability".format(R=numrounds,
-                                                                                                          S=sum([1 if
-                                                                                                                 self.states[
-                                                                                                                     "S" + str(
-                                                                                                                         s)].atI(
-                                                                                                                     i) != [
-                                                                                                                     0] else 0
-                                                                                                                 for i
-                                                                                                                 in
-                                                                                                                 range(
-                                                                                                                     16)
-                                                                                                                 for s
-                                                                                                                 in
-                                                                                                                 range(
-                                                                                                                     self.rounds + 1) + range(
-                                                                                                                     self.rounds + 2,
-                                                                                                                     self.rounds * 2 + 3)]),
-                                                                                                          P=math.log(
-                                                                                                              self.getProbability(),
-                                                                                                              2)) + r"}")
-        output.append(r"\vspace{1cm}")
+        output.append(
+            r"\caption{" + "Deoxys-BC-{R}: $2^{{{P:.2f}}}$ probability".format(R=numrounds,
+                                                                               P=math.log(
+                                                                                   self.getProbability(), 2)) + r"}")
+
+        #     r"\caption{" + "Deoxys-BC-{R}: {S} active S-boxes, $2^{{{P:.2f}}}$ probability".format(R=numrounds,
+        #                                                                                            S=sum([1 if
+        #                                                                                                   self.states[
+        #                                                                                                       "S" + str(
+        #                                                                                                           s)].atI(
+        #                                                                                                       i) != [
+        #                                                                                                       0] else 0
+        #                                                                                                   for i
+        #                                                                                                   in
+        #                                                                                                   range(
+        #                                                                                                       16)
+        #                                                                                                   for s
+        #                                                                                                   in
+        #                                                                                                   range(
+        #                                                                                                       self.rounds + 1) + range(
+        #                                                                                                       self.rounds + 2,
+        #                                                                                                       self.rounds * 2 + 3)]),
+        #                                                                                            P=math.log(
+        #                                                                                                self.getProbability(),
+        #                                                                                                2)) + r"}")
+        # output.append(r"\vspace{1cm}")
 
         def getstate(shortname, dir, rnd):
             if dir == "in" or dir == None:
@@ -335,82 +340,62 @@ class DeoxysBCTrail(Trail.Trail):
 
         output.append(r"""\begin{tikzpicture}[scale=.15]""")
 
-        # initialization, finalization
-        x -= 2 * stepxor
-        output.append(label(x, x + 2 * stepxor, "Initialization"))
-        output.append(state2sbs(x, hi, "xi_1", "$x^" + tin + "_{-1}$", getstate("A", "in", 0)))
-        output.append(state2sbs(x, lo, "xo_1", "$x^" + tout + "_{-1}$", getstate("A", "out", 0)))
-        x += stepxor
-        output.append(state2sbs(x, ct, "th_1", "$t_{-1}\qquad$", getstate("T", None, 0)))
-        x += stepxor
-        output.append(xor(x - stepxor, hi, "ai_1"))
-        output.append(xor(x - stepxor, lo, "ao_1"))
-        output.append(
-            nextstate("xi_1", "ai_1") + " " + linkstate("ai_1_east", r"0,\hi-2") + " " + linkstate("th_1_north",
-                                                                                                   "ai_1_south"))
-        output.append(
-            prevstate("xo_1", "ao_1") + " " + linkstate(r"0,\lo-2", "ao_1_east") + " " + linkstate("th_1_south",
-                                                                                                   "ao_1_north"))
-
         # outer rounds
         for rnd in rnds:
-            prob = self.probabilities[rnd]
+            prob = self.probabilities[rnd - 1]
             overallprob, sboxprob, mixcolprob = prob.getProbability()
-            output.append(labelprob(x + 1 * stepxor + 1.5 * stepnext, hi, "$2^{" + \
-                                    "{0:.2f}".format(math.log(overallprob, 2)) + "}$"))
-            prob = self.probabilities[-rnd - 1]
-            overallprob, sboxprob, mixcolprob = prob.getProbability()
-            output.append(labelprob(x + 1 * stepxor + 1.5 * stepnext, r"2.75*" + lo, "$2^{" + \
-                                    "{0:.2f}".format(math.log(overallprob, 2)) + "}$"))
+            # TODO fix label
+            # output.append(labelprob(x + 1 * stepxor + 1.5 * stepnext, r"1.1 * " + lo, "$2^{" + \
+            #                        "{0:.2f}".format(math.log(overallprob, 2)) + "}$"))
+
             r = str(rnd)
             output.append(label(x, x + 2 * stepxor + 3 * stepnext, "Round " + r))
-            output.append(state2sbs(x, hi, "xi" + r, "$x^" + tin + "_{" + r + "}$", getstate("S", "in", rnd)))
-            output.append(state2sbs(x, lo, "xo" + r, "$x^" + tout + "_{" + r + "}$", getstate("S", "out", rnd)))
-            x += stepnext
-            output.append(state2sbs(x, hi, "Xi" + r, "$x^" + tin + "_{" + r + "}$", getstate("A", "in", rnd + 1)))
-            output.append(state2sbs(x, lo, "Xo" + r, "$x^" + tout + "_{" + r + "}$", getstate("A", "out", rnd + 1)))
-            output.append(nextstate("xi" + r, "Xi" + r, r"\SB"))
-            output.append(prevstate("xo" + r, "Xo" + r, r"\SB"))
-            x += stepxor
-            output.append(state2sbs(x, ct, "th" + r, "$t_{" + r + "}\qquad$", getstate("T", None, rnd + 1)))
-            output.append(nextstate("th" + str(rnd - 1).replace("-", "_"), "th" + r, "$h$"))
-            x += stepxor
-            output.append(state2sbs(x, hi, "yi" + r, "$y^" + tin + "_{" + r + "}$", getstate("P", "in", rnd + 1)))
-            output.append(state2sbs(x, lo, "yo" + r, "$y^" + tout + "_{" + r + "}$", getstate("P", "out", rnd + 1)))
-            output.append(xor(x - stepxor, hi, "ai" + r))
-            output.append(xor(x - stepxor, lo, "ao" + r))
-            output.append(nextstate("Xi" + r, "ai" + r) + " " + nextstate("ai" + r, "yi" + r) + " " + linkstate(
-                "th" + r + "_north", "ai" + r + "_south"))
-            output.append(prevstate("Xo" + r, "ao" + r) + " " + prevstate("ao" + r, "yo" + r) + " " + linkstate(
-                "th" + r + "_south", "ao" + r + "_north"))
-            x += stepnext
-            output.append(state2sbs(x, hi, "Pi" + r, "", getstate("M", "in", rnd + 1)))
-            output.append(state2sbs(x, lo, "Po" + r, "", getstate("M", "out", rnd + 1)))
-            output.append(nextstate("yi" + r, "Pi" + r, r"\SR"))
-            output.append(prevstate("yo" + r, "Po" + r, r"\SR"))
-            x += stepnext
-            output.append(r"  \draw[next] (Pi" + r + r"_east) -- node[above,font=\scriptsize] {\MC} ++(2,0);")
-            output.append(r"  \draw[next] (Po" + r + r"_east) +(2,0) -- node[above,font=\scriptsize] {\MC} ++(0,0);")
 
-        # middle rounds
-        prob = self.probabilities[self.rounds]
-        overallprob, sboxprob, mixcolprob = prob.getProbability()
-        output.append(labelprob(x + 0.8 * stepnext, r"0.9*" + lo, "$2^{" + \
-                                "{0:.2f}".format(math.log(overallprob, 2)) + "}$"))
-        output.append(label(x, x + 7 + stepnext, "Inner"))
-        output.append(state2sbs(x, hi, "xi" + str(numrounds), "$x^" + tin + "_{" + str(numrounds) + "}$",
-                                getstate("S", "in", numrounds)))
-        output.append(state2sbs(x, lo, "xo" + str(numrounds), "$x^" + tout + "_{" + str(numrounds) + "}$",
-                                getstate("S", "out", numrounds)))
-        x += stepnext
-        output.append(state2sbs(x, hi, "Xi" + str(numrounds), "$x^" + tin + "_{" + str(numrounds) + "}$",
-                                getstate("A", "in", numrounds + 1)))
-        output.append(state2sbs(x, lo, "Xo" + str(numrounds), "$x^" + tout + "_{" + str(numrounds) + "}$",
-                                getstate("a", "out", numrounds + 1)))
-        output.append(nextstate("xi" + str(numrounds), "Xi" + str(numrounds), r"\SB"))
-        output.append(prevstate("xo" + str(numrounds), "Xo" + str(numrounds), r"\SB"))
-        output.append(r"  \draw[next] (Xi" + str(
-            numrounds) + r"_east) -| ++(1,\lo) node[right,font=\scriptsize] {\MC} |- (Xo" + str(numrounds) + "_east);")
+            # Add
+            output.append(state2sbs(x, mid, "Xi" + r, "$x^" + tin + "_{" + r + "}$", getstate("A", "in", rnd)))
+            x += stepxor
+            output.append(state2sbs(x, hi, "th" + r, "$t_{" + r + "}\qquad$", getstate("T", None, rnd)))
+            if rnd > 1:
+                output.append(nextstate("th" + str(rnd - 1).replace("-", "_"), "th" + r, "tweakey schedule"))
+            x += stepxor
+            # XOR
+            output.append(xor(x - stepxor, mid, "ai" + r))
+
+            # Sbox
+            output.append(state2sbs(x, mid, "xi" + r, "$x^" + tin + "_{" + r + "}$", getstate("S", "in", rnd)))
+            x += stepnext
+
+            # Shift Row
+            output.append(state2sbs(x, mid, "yi" + r, "$y^" + tin + "_{" + r + "}$", getstate("R", "in", rnd)))
+            x += stepnext
+
+            # Mix Columns
+            output.append(state2sbs(x, mid, "mi" + r, "", getstate("M", "in", rnd)))
+
+            output.append(
+                r"  \draw[next] (mi" + r + r"_east) -- node[above,font=\scriptsize] {\MC} ++(" + str(int(stepnext/2)) + ",0);")
+            output.append(nextstate("Xi" + r, "ai" + r) + " " + nextstate("ai" + r, "xi" + r) + " " +
+                          linkstate("th" + r + "_south", "ai" + r + "_north"))
+            output.append(nextstate("xi" + r, "yi" + r, "\SB"))
+            output.append(nextstate("yi" + r, "mi" + r, "\SR"))
+
+            x += stepnext
+
+        # finalization
+        r = str(self.rounds)
+        output.append(label(x, x + stepnext, "Final"))
+
+        # Add
+        output.append(state2sbs(x, mid, "Xi" + r, "$x^" + tin + "_{" + r + "}$", getstate("A", "in", self.rounds)))
+        x += stepxor
+        output.append(state2sbs(x, hi, "th" + r, "$t_{" + r + "}\qquad$", getstate("T", None, self.rounds)))
+        output.append(nextstate("th" + str(self.rounds - 1).replace("-", "_"), "th" + r, "tweakey schedule"))
+        x += stepxor
+        # XOR
+        output.append(xor(x - stepxor, mid, "ai" + r))
+        output.append(state2sbs(x, mid, "xi" + r, "$x^" + tin + "_{" + r + "}$", getstate("S", "in", self.rounds)))
+        output.append(nextstate("Xi" + r, "ai" + r) + " " + nextstate("ai" + r, "xi" + r) + " " +
+                      linkstate("th" + r + "_south", "ai" + r + "_north"))
 
         # legend for state colors
 
