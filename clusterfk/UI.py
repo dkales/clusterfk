@@ -1,7 +1,7 @@
-import Tkinter
-from Tkinter import Tk, Canvas, Frame, Button, Entry, Toplevel, Label, Menu, Scrollbar, Listbox
-from Tkinter import N, BOTH, BOTTOM, LEFT, LAST, FIRST
-import tkFileDialog
+import tkinter
+from tkinter import Tk, Canvas, Frame, Button, Entry, Toplevel, Label, Menu, Scrollbar, Listbox
+from tkinter import N, BOTH, BOTTOM, LEFT, LAST, FIRST
+import tkinter.filedialog
 import math
 import json
 from jsonschema import validate
@@ -10,7 +10,7 @@ from jsonschema import validate
 from clusterfk import Utils, DeoxysBC, Mantis, Qarma
 
 try:
-    import cPickle as pickle
+    import pickle as pickle
 except Exception:
     import pickle
 
@@ -41,14 +41,14 @@ class StatePopup(object):
             str = ",".join(["{:x}".format(x) for x in state])
             self.lb.insert("end", str)
             self.lb.itemconfig(i + 1, {"bg": color})
-        self.lb.grid(row=1, column=1, padx=MARGIN_LR / 2, pady=MARGIN_TB)
+        self.lb.grid(row=1, column=1, padx=(MARGIN_LR // 2), pady=MARGIN_TB)
         self.lb.config(height=5, width=8)
         self.lb.bind("<Double-Button-1>", lambda x: self.set_text(self.lb.get(self.lb.curselection())))
 
         self.e = Entry(top)
         self.e.insert(0, default_value)
         self.e.bind("<Control-KeyRelease-a>", lambda x: self.select_all())
-        self.e.grid(row=1, column=0, sticky=N, padx=MARGIN_LR / 2, pady=MARGIN_TB)
+        self.e.grid(row=1, column=0, sticky=N, padx=(MARGIN_LR // 2), pady=MARGIN_TB)
         self.e.select_range(0, 'end')
         self.e.icursor('end')
         self.e.focus()
@@ -85,21 +85,21 @@ class StatePopup(object):
     def check_cleanup(self):
         newstate = self.e.get()
         if newstate == "":
-            self.value = range(0, 2**(self.master.trail.statebitsize / self.master.trail.statesize))
+            self.value = list(range(0, 2**(self.master.trail.statebitsize // self.master.trail.statesize)))
         elif newstate == "*":
-            self.value = range(1, 2**(self.master.trail.statebitsize / self.master.trail.statesize))
+            self.value = list(range(1, 2**(self.master.trail.statebitsize // self.master.trail.statesize)))
         else:
             try:
                 state = []
                 for x in newstate.split(","):
                     x = x.strip()
                     x = int(x, 16)
-                    assert x < 2 ** (self.master.trail.statebitsize / self.master.trail.statesize)
+                    assert x < 2 ** (self.master.trail.statebitsize // self.master.trail.statesize)
                     state.append(x)
                 assert len(state) > 0
                 self.value = state
             except Exception as e:
-                print "Exception: " + str(e)
+                print("Exception: " + str(e))
                 self.value = None
                 return
 
@@ -156,7 +156,7 @@ class StateUI(Frame):
         Draws grid divided with blue lines into 4x4 squares
         """
         self.canvas.delete("grid")
-        for i in xrange(5):
+        for i in range(5):
             color = "blue" if i % 4 == 0 else "gray"
 
             x0 = self._dim["MARGIN_LR"] + i * self._dim["SIDE"]
@@ -175,8 +175,8 @@ class StateUI(Frame):
         self.canvas.delete("state")
 
         # draw grid
-        for i in xrange(self.state.staterow):
-            for j in xrange(self.state.statecol):
+        for i in range(self.state.staterow):
+            for j in range(self.state.statecol):
                 val = self.state.at(i, j)
 
                 if val == [0] or val == {0}:
@@ -191,15 +191,15 @@ class StateUI(Frame):
 
                 # numbers in state cells for same propagation
                 if self.state.statenumbers[i * self.state.staterow + j] != 0:
-                    x = self._dim["MARGIN_LR"] + j * self._dim["SIDE"] + self._dim["SIDE"] / 2
-                    y = self._dim["MARGIN_TB"] + i * self._dim["SIDE"] + self._dim["SIDE"] / 2
+                    x = self._dim["MARGIN_LR"] + j * self._dim["SIDE"] + self._dim["SIDE"] // 2
+                    y = self._dim["MARGIN_TB"] + i * self._dim["SIDE"] + self._dim["SIDE"] // 2
                     self.canvas.create_text(x, y, text=str(self.state.statenumbers[i * self.state.staterow + j]),
                                             tags="state", fill="black")
 
         # print name
         if PRINT_NAMES:
-            self.canvas.create_text(self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.staterow / 2,
-                                    self._dim["MARGIN_TB"] / 2,
+            self.canvas.create_text(self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.staterow // 2,
+                                    self._dim["MARGIN_TB"] // 2,
                                     tags="state", text=str.replace(self.state.name, "_", ""))
             # font=tkFont.Font(size=self._dim["MARGIN_TB"] - 2))
 
@@ -221,7 +221,7 @@ class StateUI(Frame):
             xl_1 = self._dim["MARGIN_LR"]
             xr_0 = self._dim["MARGIN_LR"] + self._dim["SIDE"] * self.state.statecol
             xr_1 = self._dim["MARGIN_LR"] * 2 + self._dim["SIDE"] * self.state.statecol
-            y = self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow / 2
+            y = self._dim["MARGIN_TB"] + self._dim["SIDE"] * self.state.staterow // 2
 
             if self._trailui.alpha_reflection is True:
                 if self._row < self._parent.grid_size()[1] - 2:  # Todo remove hardcoded value
@@ -234,8 +234,8 @@ class StateUI(Frame):
                                             tags="prop", fill="black")
 
                     # prop name
-                    self.canvas.create_text(xr_0 + self._dim["MARGIN_LR"] / 2 + 1,
-                                            y - self._dim["MARGIN_TB"] / 2 - 1,
+                    self.canvas.create_text(xr_0 + self._dim["MARGIN_LR"] // 2 + 1,
+                                            y - self._dim["MARGIN_TB"] // 2 - 1,
                                             tags="prop", text=self.state.name[:1])
                 else:
                     if self._col > 0:
@@ -245,7 +245,7 @@ class StateUI(Frame):
 
                         # prop name
                         prop_name = self._trailui.get_stateui_at(self._row, self._col - 1).state.name
-                        self.canvas.create_text(self._dim["MARGIN_LR"] / 2, y - self._dim["MARGIN_TB"] / 2 - 1,
+                        self.canvas.create_text(self._dim["MARGIN_LR"] // 2, y - self._dim["MARGIN_TB"] // 2 - 1,
                                                 tags="prop", text=prop_name[:1])
 
                     # arrow in state
@@ -264,11 +264,11 @@ class StateUI(Frame):
                                             tags="prop", fill="black")
 
                     # prop name
-                    self.canvas.create_text(xr_0 + self._dim["MARGIN_LR"] / 2 + 1, y - self._dim["MARGIN_TB"] / 2 - 1,
+                    self.canvas.create_text(xr_0 + self._dim["MARGIN_LR"] // 2 + 1, y - self._dim["MARGIN_TB"] // 2 - 1,
                                             tags="prop", text=self.state.name[:1])
 
     def __key_pressed(self, event):
-        print event
+        print(event)
 
     def __cell_clicked(self, event):
         # clear old selection
@@ -326,14 +326,14 @@ class StateUI(Frame):
         self.undraw_selection(selected_cell)
 
         if 0 <= selected_cell["col"] < self.state.statecol and 0 <= selected_cell["row"] < self.state.staterow:
-            print "Cell ({},{}) = {}".format(selected_cell["row"], selected_cell["col"], selected_cell["oldstate"])
+            print("Cell ({},{}) = {}".format(selected_cell["row"], selected_cell["col"], selected_cell["oldstate"]))
 
         x = self._dim["MARGIN_LR"] + selected_cell["col"] * self._dim["SIDE"]
         y = self._dim["MARGIN_TB"] + selected_cell["row"] * self._dim["SIDE"]
         self.canvas.create_rectangle(x, y, x + self._dim["SIDE"], y + self._dim["SIDE"], fill='',
                                      outline="red",
                                      width=2.0, tags="statehighlight" + str(selected_cell["row"]) + "_" + str(
-                selected_cell["col"]))
+            selected_cell["col"]))
 
     def undraw_selection(self, selected_cell):
         self.canvas.delete("statehighlight" + str(selected_cell["row"]) + "_" + str(selected_cell["col"]))
@@ -354,14 +354,14 @@ class TrailUI:
         self.alpha_reflection = trail.alpha_reflection
         self.states = []
         self.probabilitylabels = {}
-        ## scrollbar
+        # scrollbar
         # create a canvas object and a vertical scrollbar for scrolling it
         self.scrollframe = Frame(parent)
-        self.hsb = Scrollbar(self.scrollframe, orient=Tkinter.HORIZONTAL)
-        self.hsb.pack(fill=Tkinter.X, side=BOTTOM, expand=Tkinter.FALSE)
+        self.hsb = Scrollbar(self.scrollframe, orient=tkinter.HORIZONTAL)
+        self.hsb.pack(fill=tkinter.X, side=BOTTOM, expand=tkinter.FALSE)
         self.scrollcanvas = Canvas(self.scrollframe, bd=0, highlightthickness=0,
-                        xscrollcommand=self.hsb.set)
-        self.scrollcanvas.pack(side=LEFT, fill=BOTH, expand=Tkinter.TRUE)
+                                   xscrollcommand=self.hsb.set)
+        self.scrollcanvas.pack(side=LEFT, fill=BOTH, expand=tkinter.TRUE)
         self.hsb.config(command=self.scrollcanvas.xview)
 
         # reset the view
@@ -370,13 +370,13 @@ class TrailUI:
 
         # put trailframe into scrollframe and assign configs
         self.trailframe = interior = Frame(self.scrollcanvas)
-        self.interior_id = self.scrollcanvas.create_window(10, 0, window=interior, anchor=Tkinter.NW)
+        self.interior_id = self.scrollcanvas.create_window(0, 0, window=interior, anchor=tkinter.NW)
         interior.bind('<Configure>', self._configure_interior)
         self.scrollcanvas.bind('<Configure>', self._configure_canvas)
 
-        self.scrollframe.pack(fill=Tkinter.X, expand=1)
+        self.scrollframe.pack(fill=BOTH, expand=1)
         self.infoframe = Frame(parent)
-        self.infoframe.pack(fill=Tkinter.X, expand=1, side=BOTTOM)
+        self.infoframe.pack(fill=tkinter.X, expand=1, side=BOTTOM)
         self.canvas = Canvas(self.infoframe, width=1000, height=200)
         self.canvas.pack()
         self.b = Button(self.infoframe, text='Disable Propagation', command=self.__toggle_prop)
@@ -413,28 +413,29 @@ class TrailUI:
             self.scrollcanvas.config(width=self.trailframe.winfo_reqwidth())
 
     def _configure_canvas(self, event):
-        if self.trailframe.winfo_reqwidth() != self.scrollcanvas.winfo_width():
-            # update the inner frame's width to fill the canvas
-            self.scrollcanvas.itemconfigure(self.trailframe, width=self.scrollcanvas.winfo_width())
+        return
+        # if self.trailframe.winfo_reqwidth() != self.scrollcanvas.winfo_width():
+        #    # update the inner frame's width to fill the canvas
+        #    self.scrollcanvas.itemconfigure(self.trailframe, width=self.scrollcanvas.winfo_width())
 
     def __selection_start(self, event):
-        print "Selection start/continue"
+        print("Selection start/continue")
         self.multiselection_pressed = True
 
     def __dynamic_selection_start(self, event):
-        print "Dynamic selection start"
+        print("Dynamic selection start")
         self.dynamicselection_pressed = True
 
     def __selection_end(self, event):
-        print "Selection end"
+        print("Selection end")
         self.multiselection_pressed = False
 
     def __dynamic_selection_end(self, event):
-        print "Dynamic selection end"
+        print("Dynamic selection end")
         self.dynamicselection_pressed = False
 
     def open_cell_dialogue(self):
-        if len(self.selectedcells) is 0:
+        if len(self.selectedcells) == 0:
             return
 
         # oldstate = self.__clickedcells[0]["oldstate"]
@@ -565,7 +566,7 @@ class ClusterFK:
         elif filename.endswith(".json"):
             self._loadTrailFromJson(open(filename, "rb"))
         else:
-            print "File extensions not supported. Use .trail, .cfk or .json"
+            print("File extensions not supported. Use .trail, .cfk or .json")
             raise IOError()
         # self.mantis.printTrail()
         self.root.geometry("{:d}x{:d}".format(1920, 1080))
@@ -576,13 +577,13 @@ class ClusterFK:
         if self.trailUI is not None:
             self.trailUI.cleanup()
         self.trail = trail
-        #self.trail.propagate()
+        # self.trail.propagate()
         self.trailUI = TrailUI(self.root, self.trail)
         self.trailUI.redraw_all()
         self.trailUI.redrawColorList()
 
     def saveTrail(self):
-        f = tkFileDialog.asksaveasfile(mode="w", defaultextension=".json")
+        f = tkinter.filedialog.asksaveasfile(mode="w", defaultextension=".json")
         if f is None:  # asksaveasfile return `None` if dialog closed with "cancel".
             return
         # pickle.dump(self.trail, f)
@@ -612,7 +613,7 @@ class ClusterFK:
         f.close()
 
     def loadTrail(self):
-        f = tkFileDialog.askopenfile(mode="r", defaultextension=".json")
+        f = tkinter.filedialog.askopenfile(mode="r", defaultextension=".json")
         if f is None:
             return
 
@@ -621,11 +622,11 @@ class ClusterFK:
         elif f.name.endswith(".json"):
             self._loadTrailFromJson(f)
         else:
-            print "File extensions not supported. Use .trail, .cfk or .json"
+            print("File extensions not supported. Use .trail, .cfk or .json")
             raise IOError()
 
     def exportToLatex(self):
-        f = tkFileDialog.asksaveasfile(mode="w", defaultextension=".tex")
+        f = tkinter.filedialog.asksaveasfile(mode="w", defaultextension=".tex")
         if f is None:
             return
 
@@ -635,7 +636,7 @@ class ClusterFK:
 
 def _byteify(data, ignore_dicts=False):
     # if this is a unicode string, return its string representation
-    if isinstance(data, unicode):
+    if isinstance(data, str):
         return data.encode('utf-8')
     # if this is a list of values, return list of byteified values
     if isinstance(data, list):
@@ -645,7 +646,7 @@ def _byteify(data, ignore_dicts=False):
     if isinstance(data, dict) and not ignore_dicts:
         return {
             _byteify(key, ignore_dicts=True): _byteify(value, ignore_dicts=True)
-            for key, value in data.iteritems()
+            for key, value in data.items()
         }
     # if it's anything else, return it in its original form
     return data

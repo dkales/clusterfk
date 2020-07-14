@@ -1,6 +1,6 @@
-import Trail, UI, Propagation, Probability, Utils
-from Tkinter import Label, StringVar
-from Utils import COLORS
+from . import Trail, UI, Propagation, Probability, Utils
+from tkinter import Label, StringVar
+from .Utils import COLORS
 
 # external modules
 import math
@@ -318,7 +318,7 @@ class QarmaTrail(Trail.Trail):
         totalprob = 1.0
 
         # reset other stateprobs to 0, since they get recursivly calculated
-        for state in self.states.values():
+        for state in list(self.states.values()):
             state.stateprobs = [[0.0] * 16 for _ in range(16)]
 
         # set the probability of the first state to a uniform distribution
@@ -343,14 +343,14 @@ class QarmaTrail(Trail.Trail):
             inputposs *= len(self.states["A0"].atI(i))
             outputposs *= len(self.states["A" + str((self.rounds + 1) * 2)].atI(i))
 
-        print "inputposs : 2**{}".format(math.log(inputposs, 2))
-        print "outputposs: 2**{}".format(math.log(outputposs, 2))
+        print("inputposs : 2**{}".format(math.log(inputposs, 2)))
+        print("outputposs: 2**{}".format(math.log(outputposs, 2)))
         N = 2.0 / (totalprob * inputposs)
         N_phi = 2 ** (-64) * outputposs / totalprob
         if verbose:
-            print "Overall Probability: 2**{}".format(math.log(totalprob, 2))
-            print "N                  : 2**{}".format(math.log(N, 2))
-            print "N_phi              : 2**{}".format(math.log(N_phi, 2))
+            print("Overall Probability: 2**{}".format(math.log(totalprob, 2)))
+            print("N                  : 2**{}".format(math.log(N, 2)))
+            print("N_phi              : 2**{}".format(math.log(N_phi, 2)))
         return totalprob
 
     # TODO adapt and make dynamic
@@ -366,7 +366,7 @@ class QarmaTrail(Trail.Trail):
     \usetikzlibrary{calc}
     \usetikzlibrary{arrows.meta}
     """)
-        for color, hexcode in COLORS.items():
+        for color, hexcode in list(COLORS.items()):
             output.append("\definecolor{solarized" + color + "}{HTML}{" + hexcode[1:] + "}")
 
         output.append(r"""
@@ -421,9 +421,9 @@ class QarmaTrail(Trail.Trail):
         stepnext = 7
         stepxor = 3.5
         numrounds = self.rounds
-        rnds = range(numrounds)
-        rows = range(4)
-        cols = range(4)
+        rnds = list(range(numrounds))
+        rows = list(range(4))
+        cols = list(range(4))
         dirs = ['in', 'out']
 
         output.append(r"\caption{" + "QARMA-{R}: $2^{{{P:.2f}}}$ probability".format(R=numrounds,
@@ -439,10 +439,10 @@ class QarmaTrail(Trail.Trail):
                                                                                                                      16)
                                                                                                                  for s
                                                                                                                  in
-                                                                                                                 range(
-                                                                                                                     self.rounds + 1) + range(
+                                                                                                                 list(range(
+                                                                                                                     self.rounds + 1)) + list(range(
                                                                                                                      self.rounds + 2,
-                                                                                                                     self.rounds * 2 + 3)]),
+                                                                                                                     self.rounds * 2 + 3))]),
                                                                                                           P=math.log(
                                                                                                               self.getProbability(),
                                                                                                               2)) + r"}")
@@ -458,7 +458,7 @@ class QarmaTrail(Trail.Trail):
             return r"  \drawstate[xshift=" + str(xshift) + " cm,yshift=" + str(yshift) + \
                    r" cm]{" + str(sname) + r"}{" + str(sName) + r"}{" + \
                    ",".join([str(row) + "/" + str(col) + "/solarized" + \
-                             COLORS.keys()[COLORS.values().index(self.colorlist[frozenset(vrcs[row, col])])] for row in
+                             list(COLORS.keys())[list(COLORS.values()).index(self.colorlist[frozenset(vrcs[row, col])])] for row in
                              rows for col in cols if vrcs[row, col] != [0]]) + \
                    r"}"
 
@@ -577,7 +577,7 @@ class QarmaTrail(Trail.Trail):
 
         for i, (state, color) in enumerate(self.colorlist.items()):
             statestr = ",".join(["{:x}".format(x) for x in state])
-            colorstring = "solarized" + COLORS.keys()[COLORS.values().index(self.colorlist[frozenset(state)])]
+            colorstring = "solarized" + list(COLORS.keys())[list(COLORS.values()).index(self.colorlist[frozenset(state)])]
             x = 5
             y = -15 - i * 2
             output.append(

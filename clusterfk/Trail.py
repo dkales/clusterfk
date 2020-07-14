@@ -1,5 +1,5 @@
-import Utils
-from Utils import COLORS
+from . import Utils
+from .Utils import COLORS
 from clusterfk import Propagation
 
 # external
@@ -17,7 +17,7 @@ class State:
         self.statesize = staterow * statecol
         self.statebitsize = statebitsize
         self.state = state
-        self.stateprobs = [[0.0] * 2**(self.statebitsize/self.statesize) for _ in range(self.statesize)]
+        self.stateprobs = [[0.0] * 2**(self.statebitsize//self.statesize) for _ in range(self.statesize)]
         self.statenumbers = [0 for _ in range(self.statesize)]
         self.__iterindex = 0
         self.columnprobs = None
@@ -34,7 +34,7 @@ class State:
         json_rep = {"name": self.name, "state": list_state}
         return json_rep
 
-    def next(self):
+    def __next__(self):
         if self.__iterindex >= self.statesize:
             self.__iterindex = 0
             raise StopIteration
@@ -69,7 +69,7 @@ class State:
     def statesEqual(self, state):
         for row in range(self.staterow):
             for col in range(self.statecol):
-                if len(self.at(row, col) ^ state[row][col]) is not 0:
+                if len(self.at(row, col) ^ state[row][col]) != 0:
                     return False
         return True
 
@@ -103,7 +103,7 @@ class Trail:
             content = [x for x in content if x.strip() != ""]
 
             for i in range(0, len(content), self.staterow):
-                self._parseStateBlock(map(lambda x: x.strip(), content[i:i + self.staterow]))
+                self._parseStateBlock([x.strip() for x in content[i:i + self.staterow]])
 
         elif jsontrail is not None:
             self._parseJSONTrail(jsontrail)
@@ -116,10 +116,10 @@ class Trail:
 
     def _parseStateBlock(self, stateblock):
         assert len(stateblock) == self.staterow
-        curr_rounds = map(lambda x: int(x.split(" ")[0]), stateblock)
+        curr_rounds = [int(x.split(" ")[0]) for x in stateblock]
         assert all(x == curr_rounds[0] for x in curr_rounds)
         curr_round = curr_rounds[0]
-        num_states = map(lambda x: x.count(":"), stateblock)
+        num_states = [x.count(":") for x in stateblock]
         assert all(x == num_states[0] for x in num_states)
         num_states = num_states[0]
         assert num_states in (4, 5, 8)
@@ -222,10 +222,10 @@ class Trail:
 
             start = new_start
 
-        print "Finished Propagation"
+        print("Finished Propagation")
 
     def toJSON(self):
-        states = map(lambda state: state.toJSON(), self.states.values())
+        states = [state.toJSON() for state in list(self.states.values())]
 
         json_str = {}
         json_str["cipher"] = self.__class__.__name__.replace("Trail", "")
@@ -236,13 +236,13 @@ class Trail:
         return json_str
 
     def makeActiveOnly(self):
-        for name, state in self.states.items():
+        for name, state in list(self.states.items()):
             if "T" not in name:
                 state.makeActiveOnly()
 
     def getSetOfCurrentStates(self):
         stateset = set()
-        for state in self.states.values():
+        for state in list(self.states.values()):
             for cell in state:
                 if cell != {0}:
                     stateset.add(frozenset(cell))
@@ -253,20 +253,20 @@ class Trail:
         stateset = self.getSetOfCurrentStates()
         #self.colorlist = #{state: color for state, color in zip(stateset, COLORS.values())}
         self.colorlist = {state: color for state, color in
-                          zip(stateset, COLORS.values() + ["#999999"] * (len(stateset) - len(COLORS.values())))}
+                          zip(stateset, list(COLORS.values()) + ["#999999"] * (len(stateset) - len(list(COLORS.values()))))}
         # for familarity, guarantee that 0xa is red
         diff, colorname = frozenset([0xa]), "red"
         if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
-            if COLORS[colorname] in self.colorlist.values():
-                old_red = self.colorlist.keys()[self.colorlist.values().index(COLORS[colorname])]
+            if COLORS[colorname] in list(self.colorlist.values()):
+                old_red = list(self.colorlist.keys())[list(self.colorlist.values()).index(COLORS[colorname])]
                 self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
             else:
                 self.colorlist[diff] = COLORS[colorname]
         # for familarity, guarantee that a,f,d,5 is green
         diff, colorname = frozenset([0xa, 0xd, 0xf, 0x5]), "green"
         if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
-            if COLORS[colorname] in self.colorlist.values():
-                old_red = self.colorlist.keys()[self.colorlist.values().index(COLORS[colorname])]
+            if COLORS[colorname] in list(self.colorlist.values()):
+                old_red = list(self.colorlist.keys())[list(self.colorlist.values()).index(COLORS[colorname])]
                 self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
             else:
                 self.colorlist[diff] = COLORS[colorname]
@@ -276,8 +276,8 @@ class Trail:
             [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
              0x0f]), "grey"
         if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
-            if COLORS[colorname] in self.colorlist.values():
-                old_red = self.colorlist.keys()[self.colorlist.values().index(COLORS[colorname])]
+            if COLORS[colorname] in list(self.colorlist.values()):
+                old_red = list(self.colorlist.keys())[list(self.colorlist.values()).index(COLORS[colorname])]
                 self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
             else:
                 self.colorlist[diff] = COLORS[colorname]
@@ -285,18 +285,18 @@ class Trail:
         # for familarity, guarantee that a,f is yellow
         diff, colorname = frozenset([0xa, 0xf]), "yellow"
         if diff in self.colorlist and self.colorlist[diff] != COLORS[colorname]:
-            if COLORS[colorname] in self.colorlist.values():
-                old_red = self.colorlist.keys()[self.colorlist.values().index(COLORS[colorname])]
+            if COLORS[colorname] in list(self.colorlist.values()):
+                old_red = list(self.colorlist.keys())[list(self.colorlist.values()).index(COLORS[colorname])]
                 self.colorlist[diff], self.colorlist[old_red] = COLORS[colorname], self.colorlist[diff]
             else:
                 self.colorlist[diff] = COLORS[colorname]
 
     def printTrail(self):
-        for k, v in self.states.items():
-            print v
+        for k, v in list(self.states.items()):
+            print(v)
 
     def getActiveOnlyTrail(self):
         # TODO: check if this correctly calls child-ctor
         newtrail = type(self)(self.rounds)
-        for k, v in self.states.items():
+        for k, v in list(self.states.items()):
             newtrail.states[k] = v.getActiveOnlyState()

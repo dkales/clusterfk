@@ -1,5 +1,5 @@
 # internal imports
-import Utils
+from . import Utils
 
 # external imports
 import itertools
@@ -10,7 +10,7 @@ def intersect(cell1, cell2):
 
 
 def cellsdifferent(cell1, cell2):
-    return len(cell1 ^ cell2) is not 0
+    return len(cell1 ^ cell2) != 0
 
 
 class PropagationStep:
@@ -40,7 +40,7 @@ class PermutationStep(PropagationStep):
         for i in range(self.statesize):
             intersection = self.instate.atI(self.perm[i]) & self.outstate.atI(i)
             if len(intersection) == 0:
-                print "Error in: ", self.instate.name
+                print("Error in: ", self.instate.name)
                 # intersection = {10}
                 assert False
 
@@ -69,10 +69,10 @@ class UpdateTweakeyStepQarma(PropagationStep):
         self.outchanged = False
 
         for i in range(self.statesize):
-            if self.lfsrmatrix[i] is 1:
-                instate_i_shifted = set(map(lambda x: self.lfsrlookup[x], list(self.instate.atI(self.perm[i]))))
+            if self.lfsrmatrix[i] == 1:
+                instate_i_shifted = set([self.lfsrlookup[x] for x in list(self.instate.atI(self.perm[i]))])
                 intersection = instate_i_shifted & self.outstate.atI(i)
-                in_intersection = set(map(lambda x: self.lfsrlookupinv[x], intersection))
+                in_intersection = set([self.lfsrlookupinv[x] for x in intersection])
 
                 if cellsdifferent(self.instate.atI(self.perm[i]), in_intersection):
                     self.inchanged = True
@@ -86,7 +86,7 @@ class UpdateTweakeyStepQarma(PropagationStep):
                 self.instate.setI(self.perm[i], intersection)
 
             if len(intersection) == 0:
-                print "Error in: ", self.instate.name
+                print("Error in: ", self.instate.name)
                 assert False
 
             if cellsdifferent(self.outstate.atI(i), intersection):
@@ -122,7 +122,7 @@ class XORStep(PropagationStep):
             self.outstate.setI(i, outstate_new)
 
             if len(self.instate.atI(i)) == 0 or len(self.outstate.atI(i)) == 0:
-                print "Error in: ", self.instate.name
+                print("Error in: ", self.instate.name)
                 assert False
 
 
@@ -138,13 +138,13 @@ class SBOXStep(PropagationStep):
     def _getDDTState(self, state):
         ret = set()
         for x in state:
-            ret.update([i for i in range(2 ** (self.statebitsize / self.statesize)) if self.ddt[x][i] > 0])
+            ret.update([i for i in range(2 ** (self.statebitsize // self.statesize)) if self.ddt[x][i] > 0])
         return ret
 
     def _getDDTState_I(self, state):
         ret = set()
         for x in state:
-            ret.update([i for i in range(2 ** (self.statebitsize / self.statesize)) if self.ddt_I[x][i] > 0])
+            ret.update([i for i in range(2 ** (self.statebitsize // self.statesize)) if self.ddt_I[x][i] > 0])
         return ret
 
     def propagate(self):
@@ -167,7 +167,7 @@ class SBOXStep(PropagationStep):
             self.outstate.setI(i, outstate_new)
 
             if len(self.instate.atI(i)) == 0 or len(self.outstate.atI(i)) == 0:
-                print "Error in: ", self.instate.name
+                print("Error in: ", self.instate.name)
                 assert False
 
 
@@ -244,7 +244,7 @@ class MixColStep(PropagationStep):
                     self.outstate.set(row, col, no)
 
                     if len(self.instate.at(row, col)) == 0 or len(self.outstate.at(row, col)) == 0:
-                        print "Error in: ", self.instate.name
+                        print("Error in: ", self.instate.name)
                         assert False
 
 
@@ -315,7 +315,7 @@ class MixColStepDeoxys(PropagationStep):
                     self.outstate.set(row, col, no)
 
                     if len(self.instate.at(row, col)) == 0 or len(self.outstate.at(row, col)) == 0:
-                        print "Error in: ", self.instate.name
+                        print("Error in: ", self.instate.name)
                         assert False
 
 
@@ -348,7 +348,7 @@ class ShiftRowsStep(PropagationStep):
                 self.outstate.set(row, col, outcell_new)
 
                 if len(self.instate.at(row, col)) == 0 or len(self.outstate.at(row, col)) == 0:
-                    print "Error in: ", self.instate.name
+                    print("Error in: ", self.instate.name)
                     assert False
 
 # TODO: updateTweakeyDeoxys

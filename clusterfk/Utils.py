@@ -93,7 +93,7 @@ json_schema = {
 def initDDT(sbox):
     size = len(sbox)
     ddt = [[0 for _ in range(size)] for _ in range(size)]
-    for in1, in2 in itertools.product(range(size), repeat=2):
+    for in1, in2 in itertools.product(list(range(size)), repeat=2):
         out1, out2 = sbox[in1], sbox[in2]
         ddt[in1 ^ in2][out1 ^ out2] += 1
     return ddt
@@ -104,7 +104,7 @@ MASK_8 = 255
 
 
 def first(set):
-    return iter(set).next()
+    return next(iter(set))
 
 
 def listtobool(list):
@@ -159,7 +159,7 @@ def rotr_bitwise(num, i, size=4):
 
 # rowwise (list) operations
 def rotl_list(lst, i, size=4):
-    if i is 0:
+    if i == 0:
         return lst
 
     new_lst = rotl_list_by_one(lst, size)
@@ -169,7 +169,7 @@ def rotl_list(lst, i, size=4):
 
 
 def rotr_list(lst, i, size=4):
-    if i is 0:
+    if i == 0:
         return lst
 
     new_lst = rotr_list_by_one(lst, size)
