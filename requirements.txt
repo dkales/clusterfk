@@ -1,9 +1,1 @@
-itertools
-math
-re
-copy
-operator
-Tkinter
-tkFileDialog
-json
 jsonschema
